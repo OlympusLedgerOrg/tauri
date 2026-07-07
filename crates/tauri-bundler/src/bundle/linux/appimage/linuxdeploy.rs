@@ -149,11 +149,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for file in [
     "WebKitNetworkProcess",
     "WebKitWebProcess",
-    "injected-bundle/libwebkit2gtkinjectedbundle.so",
+    "injected-bundle/libwebkitgtkinjectedbundle.so",
   ] {
     for source in search_dirs.map(PathBuf::from) {
       // TODO: Check if it's the same dir name on all systems
-      let source = source.join("webkit2gtk-4.1").join(file);
+      let source = source.join("webkitgtk-6.0").join(file);
       if source.exists() {
         fs_utils::copy_file(
           &source,
@@ -237,10 +237,7 @@ fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<
   }
 
   let gtk = tools_path.join("linuxdeploy-plugin-gtk.sh");
-  if !gtk.exists() {
-    let data = download("https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh")?;
-    write_and_make_executable(&gtk, data)?;
-  }
+  write_and_make_executable(&gtk, include_bytes!("linuxdeploy-plugin-gtk.sh").to_vec())?;
 
   let gstreamer = tools_path.join("linuxdeploy-plugin-gstreamer.sh");
   if !gstreamer.exists() {
