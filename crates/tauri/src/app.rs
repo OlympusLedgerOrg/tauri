@@ -679,11 +679,16 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
-    let _ = self.run_on_main_thread(move || {
-      let mtm = objc2::MainThreadMarker::new().unwrap();
-      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
-      tx.send(ui_application.supportsMultipleScenes()).unwrap();
-    });
+    if self
+      .run_on_main_thread(move || {
+        let mtm = objc2::MainThreadMarker::new().unwrap();
+        let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+        tx.send(ui_application.supportsMultipleScenes()).unwrap();
+      })
+      .is_err()
+    {
+      return false;
+    }
     rx.recv().unwrap()
   }
 }

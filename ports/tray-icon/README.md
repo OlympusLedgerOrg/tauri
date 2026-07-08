@@ -23,13 +23,13 @@ tray-icon lets you create tray icons for desktop applications.
 
 On Linux, the `linux-ksni` feature uses StatusNotifierItem over D-Bus through `ksni` and does not depend on `libappindicator`. The legacy `gtk` feature keeps the appindicator backend available for compatibility. `libxdo` is used by predefined `Copy`, `Cut`, `Paste`, and `SelectAll` menu items.
 
-#### Arch Linux / Manjaro:
+### Arch Linux / Manjaro:
 
 ```sh
 pacman -S gtk4 xdotool dbus
 ```
 
-#### Debian / Ubuntu:
+### Debian / Ubuntu:
 
 ```sh
 sudo apt install libgtk-4-dev libxdo-dev libdbus-1-dev

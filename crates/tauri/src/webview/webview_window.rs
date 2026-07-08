@@ -1284,7 +1284,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///     let mut builder = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()));
   ///     #[cfg(target_os = "ios")]
   ///     {
-  ///       window_builder = window_builder.with_input_accessory_view_builder(|_webview| unsafe {
+  ///       builder = builder.with_input_accessory_view_builder(|_webview| unsafe {
   ///         let mtm = objc2::MainThreadMarker::new_unchecked();
   ///         let button = objc2_ui_kit::UIButton::buttonWithType(objc2_ui_kit::UIButtonType(1), mtm);
   ///         button.setTitle_forState(
