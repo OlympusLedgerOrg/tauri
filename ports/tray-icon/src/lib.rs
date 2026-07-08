@@ -14,28 +14,31 @@
 //!
 //! - Windows
 //! - macOS
-//! - Linux (gtk Only)
-//! - FreeBSD / DragonFly BSD / NetBSD / OpenBSD (gtk Only)
+//! - Linux (`linux-ksni` or legacy `gtk` backend)
+//! - FreeBSD / DragonFly BSD / NetBSD / OpenBSD (legacy `gtk` backend)
 //!
 //! # Platform-specific notes:
 //!
-//! - On Windows, Linux, and BSD, an event loop must be running on the thread, on Windows, a win32 event loop and on Linux or BSD, a gtk event loop. It doesn't need to be the main thread but you have to create the tray icon on the same thread as the event loop.
+//! - On Windows, Linux, and BSD, an event loop must be running on the thread. On Windows, this is a win32 event loop. On Linux with the legacy `gtk` backend or on BSD, this is a gtk event loop. It doesn't need to be the main thread but you have to create the tray icon on the same thread as the event loop.
 //! - On macOS, an event loop must be running on the main thread so you also need to create the tray icon on the main thread. You must make sure that the event loop is already running and not just created before creating a TrayIcon to prevent issues with fullscreen apps. In Winit for example the earliest you can create icons is on [`StartCause::Init`](https://docs.rs/winit/latest/winit/event/enum.StartCause.html#variant.Init).
 //!
 //! # Dependencies (Linux Only)
 //!
-//! On Linux, `gtk`, `libxdo` is used to make the predefined `Copy`, `Cut`, `Paste` and `SelectAll` menu items work and `libappindicator` or `libayatana-appindicator` are used to create the tray icon, so make sure to install them on your system.
+//! On Linux, the `linux-ksni` feature uses StatusNotifierItem over D-Bus through
+//! `ksni` and does not depend on `libappindicator`. The legacy `gtk` feature
+//! keeps the appindicator backend available for compatibility. `libxdo` is used
+//! by predefined `Copy`, `Cut`, `Paste`, and `SelectAll` menu items.
 //!
 //! #### Arch Linux / Manjaro:
 //!
 //! ```sh
-//! pacman -S gtk3 xdotool libappindicator-gtk3 #or libayatana-appindicator
+//! pacman -S gtk4 xdotool dbus
 //! ```
 //!
 //! #### Debian / Ubuntu:
 //!
 //! ```sh
-//! sudo apt install libgtk-3-dev libxdo-dev libappindicator3-dev #or libayatana-appindicator3-dev
+//! sudo apt install libgtk-4-dev libxdo-dev libdbus-1-dev
 //! ```
 //!
 //! # Examples
