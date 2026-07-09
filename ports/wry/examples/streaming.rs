@@ -114,17 +114,30 @@ mod imp {
       //  removing leading slash
       &path[1..]
     };
-    let content = std::fs::read(std::fs::canonicalize(root.join(path))?)?;
+    let root = std::fs::canonicalize(root)?;
+    let file_path = std::fs::canonicalize(root.join(path))?;
+    if !file_path.starts_with(&root) {
+      return Err("requested path escapes streaming example root".into());
+    }
+    let content = std::fs::read(file_path)?;
 
-    // Return asset contents and mime types based on file extentions
+    // Return asset contents and mime types based on file extensions
     // If you don't want to do this manually, there are some crates for you.
     // Such as `infer` and `mime_guess`.
     let mimetype = if path.ends_with(".html") || path == "/" {
-      "text/html"
+      Some("text/html")
     } else if path.ends_with(".js") {
-      "text/javascript"
+      Some("text/javascript")
     } else {
-      unimplemented!();
+      None
+    };
+    let Some(mimetype) = mimetype else {
+      return Ok(
+        Response::builder()
+          .status(StatusCode::UNSUPPORTED_MEDIA_TYPE)
+          .header(CONTENT_TYPE, "text/plain")
+          .body(b"unsupported media type".to_vec())?,
+      );
     };
 
     Response::builder()
@@ -141,6 +154,8 @@ mod imp {
       .decode_utf8_lossy()
       .to_string();
 
+    // This demo intentionally streams the local path typed into the page.
+    // Constrain this to an allow-listed directory before reusing it with untrusted content.
     let mut file = std::fs::File::open(path)?;
 
     // get file length
@@ -233,7 +248,7 @@ mod imp {
           format!("multipart/byteranges; boundary={boundary}"),
         );
 
-        for (end, start) in ranges {
+        for (start, end) in ranges {
           // a new range is being written, write the range boundary
           buf.write_all(boundary_sep.as_bytes())?;
 

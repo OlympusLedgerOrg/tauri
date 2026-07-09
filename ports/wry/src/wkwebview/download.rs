@@ -58,6 +58,12 @@ pub(crate) fn download_policy(
     let request = download.originalRequest().unwrap();
     let url = request.URL().unwrap().absoluteString().unwrap();
     let suggested_filename = suggested_filename.to_string();
+    let suggested_filename = std::path::Path::new(&suggested_filename)
+      .file_name()
+      .and_then(|name| name.to_str())
+      .filter(|name| !name.is_empty())
+      .unwrap_or("download")
+      .to_string();
     let mut download_destination =
       dirs::download_dir().unwrap_or_else(|| current_dir().unwrap_or_default());
 
@@ -108,7 +114,7 @@ pub(crate) fn download_did_fail(
   this: &WryDownloadDelegate,
   download: &WKDownload,
   error: &NSError,
-  _resume_data: &NSData,
+  _resume_data: Option<&NSData>,
 ) {
   unsafe {
     #[cfg(debug_assertions)]

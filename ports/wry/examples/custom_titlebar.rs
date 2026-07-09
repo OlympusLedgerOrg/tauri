@@ -76,10 +76,10 @@ fn hit_test(window_size: PhysicalSize<u32>, x: i32, y: i32, scale: f64) -> HitTe
   let bottom = top + window_size.height as i32;
   let right = left + window_size.width as i32;
 
-  let x = x * scale as i32;
-  let y = y * scale as i32;
+  let x = (x as f64 * scale).round() as i32;
+  let y = (y as f64 * scale).round() as i32;
 
-  let inset = (BORDERLESS_RESIZE_INSET * scale) as i32;
+  let inset = (BORDERLESS_RESIZE_INSET * scale).round() as i32;
 
   #[rustfmt::skip]
       let result =
@@ -220,29 +220,33 @@ fn main() -> wry::Result<()> {
   let proxy = event_loop.create_proxy();
   let handler = move |req: Request<String>| {
     let body = req.body();
-    let mut req = body.split([':', ',']);
-    match req.next().unwrap() {
-      "minimize" => {
+    let mut parts = body.split([':', ',']);
+    match parts.next() {
+      Some("minimize") => {
         let _ = proxy.send_event(UserEvent::Minimize);
       }
-      "maximize" => {
+      Some("maximize") => {
         let _ = proxy.send_event(UserEvent::Maximize);
       }
-      "drag_window" => {
+      Some("drag_window") => {
         let _ = proxy.send_event(UserEvent::DragWindow);
       }
-      "close" => {
+      Some("close") => {
         let _ = proxy.send_event(UserEvent::CloseWindow);
       }
-      "mousedown" => {
-        let x = req.next().unwrap().parse().unwrap();
-        let y = req.next().unwrap().parse().unwrap();
-        let _ = proxy.send_event(UserEvent::MouseDown(x, y));
+      Some("mousedown") => {
+        if let (Some(x), Some(y)) = (parts.next(), parts.next()) {
+          if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
+            let _ = proxy.send_event(UserEvent::MouseDown(x, y));
+          }
+        }
       }
-      "mousemove" => {
-        let x = req.next().unwrap().parse().unwrap();
-        let y = req.next().unwrap().parse().unwrap();
-        let _ = proxy.send_event(UserEvent::MouseMove(x, y));
+      Some("mousemove") => {
+        if let (Some(x), Some(y)) = (parts.next(), parts.next()) {
+          if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
+            let _ = proxy.send_event(UserEvent::MouseMove(x, y));
+          }
+        }
       }
       _ => {}
     }

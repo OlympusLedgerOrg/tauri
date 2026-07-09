@@ -24,18 +24,20 @@ pub fn is_work_around_uri(uri: &str, http_or_https: &str, protocol: &str) -> boo
 
 /// Conveting `{protocol}://localhost/abc` to `{http_or_https}://{protocol}.localhost/abc`
 pub fn apply_uri_work_around(uri: &str, http_or_https: &str, protocol: &str) -> String {
-  uri.replace(
-    &original_uri_prefix(protocol),
-    &work_around_uri_prefix(http_or_https, protocol),
-  )
+  let original_prefix = original_uri_prefix(protocol);
+  match uri.strip_prefix(&original_prefix) {
+    Some(rest) => format!("{}{rest}", work_around_uri_prefix(http_or_https, protocol)),
+    None => uri.to_string(),
+  }
 }
 
 /// Conveting `{http_or_https}://{protocol}.localhost/abc` back to `{protocol}://localhost/abc`
 pub fn revert_uri_work_around(uri: &str, http_or_https: &str, protocol: &str) -> String {
-  uri.replace(
-    &work_around_uri_prefix(http_or_https, protocol),
-    &original_uri_prefix(protocol),
-  )
+  let work_around_prefix = work_around_uri_prefix(http_or_https, protocol);
+  match uri.strip_prefix(&work_around_prefix) {
+    Some(rest) => format!("{}{rest}", original_uri_prefix(protocol)),
+    None => uri.to_string(),
+  }
 }
 
 pub fn original_uri_prefix(protocol: &str) -> String {
