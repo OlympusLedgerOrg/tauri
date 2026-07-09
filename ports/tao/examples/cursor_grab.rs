@@ -40,12 +40,16 @@ fn main() {
             },
           ..
         } => {
-          // WARNING: Consider using `key_without_modifers()` if available on your platform.
+          // WARNING: Consider using `key_without_modifiers()` if available on your platform.
           // See the `key_binding` example
           match key {
             Key::Escape => *control_flow = ControlFlow::Exit,
             Key::Character(ch) => match ch.to_lowercase().as_str() {
-              "g" => window.set_cursor_grab(!modifiers.shift_key()).unwrap(),
+              "g" => {
+                if let Err(e) = window.set_cursor_grab(!modifiers.shift_key()) {
+                  eprintln!("failed to set cursor grab: {e}");
+                }
+              }
               "h" => window.set_cursor_visible(modifiers.shift_key()),
               _ => (),
             },

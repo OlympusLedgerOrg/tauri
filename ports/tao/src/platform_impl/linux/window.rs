@@ -145,9 +145,9 @@ impl Window {
       }
     }
 
-    window.present();
-
-    if !attributes.visible {
+    if attributes.visible {
+      window.present();
+    } else {
       window.set_visible(false);
     }
 
@@ -278,11 +278,11 @@ impl Window {
   }
 
   pub fn inner_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
-    Ok(PhysicalPosition::new(0, 0))
+    Err(NotSupportedError::new())
   }
 
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
-    Ok(PhysicalPosition::new(0, 0))
+    Err(NotSupportedError::new())
   }
 
   pub fn set_outer_position<P: Into<Position>>(&self, _: P) {}
@@ -556,7 +556,7 @@ impl Window {
   }
 
   pub fn set_cursor_grab(&self, _grab: bool) -> Result<(), ExternalError> {
-    Ok(())
+    Err(ExternalError::NotSupported(NotSupportedError::new()))
   }
 
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
@@ -837,11 +837,6 @@ impl Window {
     }
   }
 }
-
-// We need GtkWindow to initialize WebView, so we have to keep it in the field.
-// It is called on any method.
-unsafe impl Send for Window {}
-unsafe impl Sync for Window {}
 
 #[non_exhaustive]
 pub enum WindowRequest {

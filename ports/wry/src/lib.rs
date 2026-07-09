@@ -653,7 +653,7 @@ struct WebViewAttributes<'a> {
 
   /// The IPC handler to receive the message from Javascript on webview
   /// using `window.ipc.postMessage("insert_message_here")` to host Rust code.
-  pub ipc_handler: Option<Box<dyn Fn(Request<String>)>>,
+  pub ipc_handler: Option<Box<dyn Fn(Request<String>) + Send + Sync>>,
 
   /// A handler closure to process incoming [`DragDropEvent`] of the webview.
   ///
@@ -668,7 +668,7 @@ struct WebViewAttributes<'a> {
   ///
   /// The closure take a `String` parameter as url and returns a `bool` to determine whether the navigation should happen.
   /// `true` allows to navigate and `false` does not.
-  pub navigation_handler: Option<Box<dyn Fn(String) -> bool>>,
+  pub navigation_handler: Option<Box<dyn Fn(String) -> bool + Send + Sync>>,
 
   /// A download started handler to manage incoming downloads.
   ///
@@ -741,7 +741,7 @@ struct WebViewAttributes<'a> {
   pub back_forward_navigation_gestures: bool,
 
   /// Set a handler closure to process the change of the webview's document title.
-  pub document_title_changed_handler: Option<Box<dyn Fn(String)>>,
+  pub document_title_changed_handler: Option<Box<dyn Fn(String) + Send + Sync>>,
 
   /// Run the WebView with incognito mode. Note that WebContext will be ignored if incognito is
   /// enabled.
@@ -758,7 +758,7 @@ struct WebViewAttributes<'a> {
   pub autoplay: bool,
 
   /// Set a handler closure to process page load events.
-  pub on_page_load_handler: Option<Box<dyn Fn(PageLoadEvent, String)>>,
+  pub on_page_load_handler: Option<Box<dyn Fn(PageLoadEvent, String) + Send + Sync>>,
 
   /// Set a proxy configuration for the webview. Supports HTTP CONNECT and SOCKSv5 proxies
   ///
@@ -1176,7 +1176,7 @@ impl<'a> WebViewBuilder<'a> {
   /// - **Linux / Android**: The request URL is not supported on iframes and the main frame URL is used instead.
   pub fn with_ipc_handler<F>(mut self, handler: F) -> Self
   where
-    F: Fn(Request<String>) + 'static,
+    F: Fn(Request<String>) + Send + Sync + 'static,
   {
     self.attrs.ipc_handler = Some(Box::new(handler));
     self
@@ -1298,7 +1298,10 @@ impl<'a> WebViewBuilder<'a> {
   ///
   /// The closure take a `String` parameter as url and returns a `bool` to determine whether the navigation should happen.
   /// `true` allows to navigate and `false` does not.
-  pub fn with_navigation_handler(mut self, callback: impl Fn(String) -> bool + 'static) -> Self {
+  pub fn with_navigation_handler(
+    mut self,
+    callback: impl Fn(String) -> bool + Send + Sync + 'static,
+  ) -> Self {
     self.attrs.navigation_handler = Some(Box::new(callback));
     self
   }
@@ -1417,7 +1420,7 @@ impl<'a> WebViewBuilder<'a> {
   /// Set a handler closure to process the change of the webview's document title.
   pub fn with_document_title_changed_handler(
     mut self,
-    callback: impl Fn(String) + 'static,
+    callback: impl Fn(String) + Send + Sync + 'static,
   ) -> Self {
     self.attrs.document_title_changed_handler = Some(Box::new(callback));
     self
@@ -1439,7 +1442,7 @@ impl<'a> WebViewBuilder<'a> {
   /// Set a handler to process page loading events.
   pub fn with_on_page_load_handler(
     mut self,
-    handler: impl Fn(PageLoadEvent, String) + 'static,
+    handler: impl Fn(PageLoadEvent, String) + Send + Sync + 'static,
   ) -> Self {
     self.attrs.on_page_load_handler = Some(Box::new(handler));
     self
@@ -1983,6 +1986,13 @@ impl WebViewBuilderExtAndroid for WebViewBuilder<'_> {
 
   #[cfg(feature = "protocol")]
   fn with_asset_loader(mut self, protocol: String) -> Self {
+    if self.attrs.custom_protocols.contains_key(&protocol) {
+      self.error = self
+        .error
+        .and(Err(Error::DuplicateCustomProtocol(protocol)));
+      return self;
+    }
+
     // register custom protocol with empty Response return,
     // this is necessary due to the need of fixing a domain
     // in WebViewAssetLoader.

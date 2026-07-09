@@ -63,7 +63,7 @@
 ## \[0.53.4]
 
 - [`093856a`](https://github.com/tauri-apps/wry/commit/093856a2a53a6fc1aaa759e048c7e1fe31bb09fa) ([#1622](https://github.com/tauri-apps/wry/pull/1622) by [@lucasfernog](https://github.com/tauri-apps/wry/../../lucasfernog)) Add flag to opt out of automatic back navigation handling on Android via `WryActivity#handleBackNavigation`.
-- [`0f51d67`](https://github.com/tauri-apps/wry/commit/0f51d67485d84fd9c72391379a67567eea3cbbfe) ([#1605](https://github.com/tauri-apps/wry/pull/1605) by [@dgerhardt](https://github.com/tauri-apps/wry/../../dgerhardt)) On Linux, removed a workaround which forced inital requests for multiple webviews to be handled sequentially.
+- [`0f51d67`](https://github.com/tauri-apps/wry/commit/0f51d67485d84fd9c72391379a67567eea3cbbfe) ([#1605](https://github.com/tauri-apps/wry/pull/1605) by [@dgerhardt](https://github.com/tauri-apps/wry/../../dgerhardt)) On Linux, removed a workaround which forced initial requests for multiple webviews to be handled sequentially.
   The workaround was intended to fix a concurrency bug with loading multiple URIs at the same time on WebKitGTK.
   But it prevented parallelization and could cause a deadlock in certain situations.
   It is no longer needed with newer WebKitGTK versions.
@@ -74,7 +74,7 @@
 
 ## \[0.53.2]
 
-- [`1743e7f`](https://github.com/tauri-apps/wry/commit/1743e7f9c1113db1639d544f1f12b8835f91e20b) ([#1608](https://github.com/tauri-apps/wry/pull/1608) by [@lucasfernog](https://github.com/tauri-apps/wry/../../lucasfernog)) Fix new_window_req_handler craashing when creating new window for webview that has a custom data_store_identifier.
+- [`1743e7f`](https://github.com/tauri-apps/wry/commit/1743e7f9c1113db1639d544f1f12b8835f91e20b) ([#1608](https://github.com/tauri-apps/wry/pull/1608) by [@lucasfernog](https://github.com/tauri-apps/wry/../../lucasfernog)) Fix new_window_req_handler crashing when creating new window for webview that has a custom data_store_identifier.
 
 ## \[0.53.1]
 
@@ -446,7 +446,7 @@
   - `WebviewUriLoader` → `WebViewUriLoader`
 - [`e61e7f8`](https://github.com/tauri-apps/wry/commit/e61e7f8474c18752f5c60d3f1f5ba33b27e41d52)([#1090](https://github.com/tauri-apps/wry/pull/1090)) Add `WebViewExtWindows::set_memory_usage_level` API to set the [memory usage target level](https://learn.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2memoryusagetargetlevel) on Windows. Setting 'Low' memory usage target level when an application is going to inactive can significantly reduce the memory consumption. Please read the [guide for WebView2](https://github.com/MicrosoftEdge/WebView2Feedback/blob/main/specs/MemoryUsageTargetLevel.md) for more details.
 - [`e61e7f8`](https://github.com/tauri-apps/wry/commit/e61e7f8474c18752f5c60d3f1f5ba33b27e41d52)([#1090](https://github.com/tauri-apps/wry/pull/1090)) -   Add cfg_aliases for easier feature configuration. And add `os-webview` as default feature.
-- [`e61e7f8`](https://github.com/tauri-apps/wry/commit/e61e7f8474c18752f5c60d3f1f5ba33b27e41d52)([#1090](https://github.com/tauri-apps/wry/pull/1090)) Enhance initalization script implementation on Android supporting any kind of URL.
+- [`e61e7f8`](https://github.com/tauri-apps/wry/commit/e61e7f8474c18752f5c60d3f1f5ba33b27e41d52)([#1090](https://github.com/tauri-apps/wry/pull/1090)) Enhance initialization script implementation on Android supporting any kind of URL.
 - [`e61e7f8`](https://github.com/tauri-apps/wry/commit/e61e7f8474c18752f5c60d3f1f5ba33b27e41d52)([#1090](https://github.com/tauri-apps/wry/pull/1090)) Fix wkwebview crashed when received invalid UTF8 string from IPC.
 - [`e61e7f8`](https://github.com/tauri-apps/wry/commit/e61e7f8474c18752f5c60d3f1f5ba33b27e41d52)([#1090](https://github.com/tauri-apps/wry/pull/1090)) Refactor new method to take raw window handle instead. Following are APIs got affected:
 

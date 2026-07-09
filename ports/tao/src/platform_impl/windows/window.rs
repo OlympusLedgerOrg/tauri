@@ -8,7 +8,6 @@
 
 #![cfg(target_os = "windows")]
 
-use mem::MaybeUninit;
 use parking_lot::Mutex;
 use std::{
   cell::{Cell, RefCell},
@@ -513,7 +512,7 @@ impl Window {
         Some(self.hwnd()),
         WM_NCLBUTTONDOWN,
         wparam,
-        LPARAM(&points as *const _ as _),
+        util::MAKELPARAM(points.x, points.y),
       )?
     };
 
@@ -748,7 +747,11 @@ impl Window {
             placement
           };
 
-          window_state.lock().saved_window = Some(SavedWindow { placement });
+          let mut state = window_state.lock();
+          if state.saved_window.is_none() {
+            state.saved_window = Some(SavedWindow { placement });
+          }
+          drop(state);
 
           let monitor = match &fullscreen {
             Fullscreen::Exclusive(video_mode) => video_mode.monitor(),
@@ -950,14 +953,8 @@ impl Window {
       let vk = u32::from(VK_SPACE.0);
       let scancode = MapVirtualKeyW(vk, MAPVK_VK_TO_VSC);
       let kbd_state = [0; 256];
-      let mut char_buff: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
-      ToUnicode(
-        vk,
-        scancode,
-        Some(&kbd_state),
-        mem::transmute::<&mut [std::mem::MaybeUninit<u16>], &mut [u16]>(char_buff.as_mut()),
-        0,
-      );
+      let mut char_buff = [0u16; 8];
+      ToUnicode(vk, scancode, Some(&kbd_state), &mut char_buff, 0);
     }
   }
 
@@ -991,7 +988,12 @@ impl Window {
   #[inline]
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
     unsafe {
-      let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
+      com_initialized();
+      let Ok(taskbar_list): windows::core::Result<ITaskbarList> =
+        CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER)
+      else {
+        return;
+      };
       let handle = self.hwnd();
 
       if let Some(state) = progress.state {
@@ -1021,8 +1023,12 @@ impl Window {
 
   #[inline]
   pub fn set_overlay_icon(&self, icon: Option<&Icon>) {
-    let taskbar: ITaskbarList =
-      unsafe { CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap() };
+    com_initialized();
+    let taskbar: ITaskbarList = match unsafe { CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER) }
+    {
+      Ok(taskbar) => taskbar,
+      Err(_) => return,
+    };
 
     let icon = icon.map(|i| i.inner.as_raw_handle()).unwrap_or_default();
 

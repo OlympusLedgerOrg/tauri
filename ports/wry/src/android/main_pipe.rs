@@ -31,7 +31,13 @@ static CHANNEL: Lazy<(
 )> = Lazy::new(|| bounded(8));
 pub static MAIN_PIPE: Lazy<[OwnedFd; 2]> = Lazy::new(|| {
   let mut pipe: [RawFd; 2] = Default::default();
-  unsafe { libc::pipe(pipe.as_mut_ptr()) };
+  let result = unsafe { libc::pipe(pipe.as_mut_ptr()) };
+  if result != 0 {
+    panic!(
+      "failed to create Android main pipe: {}",
+      std::io::Error::last_os_error()
+    );
+  }
   unsafe { pipe.map(|fd| OwnedFd::from_raw_fd(fd)) }
 });
 
@@ -112,8 +118,7 @@ pub fn get_webview(activity_id: ActivityId) -> Option<GlobalRef> {
   ACTIVITY_PROXY
     .lock()
     .unwrap()
-    .get(&activity_id)
-    .unwrap()
+    .get(&activity_id)?
     .webview
     .as_ref()
     .cloned()
@@ -389,12 +394,14 @@ impl<'a> MainPipe<'a> {
                 .map(|v| v.to_string_lossy().to_string())
             }) {
             Ok(version) => {
-              tx.send(Ok(version)).unwrap();
+              let _ = tx.send(Ok(version));
             }
-            Err(e) => tx.send(Err(e.into())).unwrap(),
+            Err(e) => {
+              let _ = tx.send(Err(e.into()));
+            }
           }
         } else {
-          tx.send(Err(Error::ActivityNotFound)).unwrap();
+          let _ = tx.send(Err(Error::ActivityNotFound));
         }
       }
       WebViewMessage::GetUrl(tx) => {
@@ -412,7 +419,7 @@ impl<'a> MainPipe<'a> {
             })
             .unwrap_or_default();
 
-          tx.send(url).unwrap()
+          let _ = tx.send(url);
         }
       }
       WebViewMessage::Jni(f) => {
@@ -464,14 +471,12 @@ impl<'a> MainPipe<'a> {
       }
       WebViewMessage::CanGoForward(tx) => {
         if let Some(webview) = get_webview(activity_id) {
-          tx.send(can_go_forward(&mut self.env, webview.as_obj())?)
-            .unwrap();
+          let _ = tx.send(can_go_forward(&mut self.env, webview.as_obj())?);
         }
       }
       WebViewMessage::CanGoBack(tx) => {
         if let Some(webview) = get_webview(activity_id) {
-          tx.send(can_go_back(&mut self.env, webview.as_obj())?)
-            .unwrap();
+          let _ = tx.send(can_go_back(&mut self.env, webview.as_obj())?);
         }
       }
       WebViewMessage::GetCookies(tx, url) => {
@@ -495,13 +500,12 @@ impl<'a> MainPipe<'a> {
             })
             .unwrap_or_default();
 
-          tx.send(
+          let _ = tx.send(
             cookies
               .split("; ")
               .flat_map(|c| cookie::Cookie::parse(c.to_string()))
               .collect(),
-          )
-          .unwrap();
+          );
         }
       }
       WebViewMessage::OnDestroy {

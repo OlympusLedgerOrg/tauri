@@ -86,7 +86,6 @@ use std::{
   os::raw::c_char,
   panic::AssertUnwindSafe,
   ptr::NonNull,
-  rc::Rc,
   str::{self, FromStr},
   sync::{Arc, Mutex, RwLock},
   time::Duration,
@@ -110,15 +109,30 @@ use crate::util::Counter;
 
 static COUNTER: Counter = Counter::new();
 
+fn cookie_domain_matches(cookie_domain: Option<&str>, url_domain: Option<&str>) -> bool {
+  let (Some(cookie_domain), Some(url_domain)) = (cookie_domain, url_domain) else {
+    return false;
+  };
+
+  if cookie_domain.eq_ignore_ascii_case(url_domain) {
+    return true;
+  }
+
+  let cookie_domain = cookie_domain.trim_start_matches('.').to_ascii_lowercase();
+  let url_domain = url_domain.to_ascii_lowercase();
+
+  url_domain
+    .strip_suffix(&cookie_domain)
+    .map(|prefix| !prefix.is_empty() && prefix.ends_with('.'))
+    .unwrap_or(false)
+}
+
 static WEBVIEW_STATE: Lazy<RwLock<HashMap<String, WebViewState>>> = Lazy::new(Default::default);
 
 struct WebViewState {
   pub protocol_ptrs:
-    Vec<Rc<dyn Fn(crate::WebViewId, Request<Vec<u8>>, RequestAsyncResponder) + Send + Sync>>,
+    Vec<Arc<dyn Fn(crate::WebViewId, Request<Vec<u8>>, RequestAsyncResponder) + Send + Sync>>,
 }
-
-unsafe impl Send for WebViewState {}
-unsafe impl Sync for WebViewState {}
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct PrintMargin {
@@ -270,7 +284,7 @@ impl InnerWebView {
         let url_scheme_handler_cls = url_scheme_handler::create(&name);
         let handler: *mut AnyObject = objc2::msg_send![url_scheme_handler_cls, new];
         let protocol_index = protocol_ptrs.len();
-        protocol_ptrs.push(Rc::from(function));
+        protocol_ptrs.push(Arc::from(function));
 
         let ivar = (*handler)
           .class()
@@ -1206,8 +1220,8 @@ r#"Object.defineProperty(window, 'ipc', {
     self.cookies().map(|cookies| {
       cookies.into_iter().filter(|cookie: &cookie::Cookie| {
         let secure = cookie.secure().unwrap_or_default();
-        // domain is the same
-        cookie.domain() == url.domain()
+        // domain matches the request host
+        cookie_domain_matches(cookie.domain(), url.domain())
           // and one of
           && (
             // cookie is secure and url is https

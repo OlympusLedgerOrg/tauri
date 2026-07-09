@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for Tauri
+about: Suggest an idea for wry
 title: ''
 labels: feature request
 assignees: ''

@@ -110,20 +110,23 @@ define_class!(
       handler: &block2::Block<dyn Fn(*const NSArray<NSURL>)>,
     ) {
       unsafe {
-        if let Some(mtm) = MainThreadMarker::new() {
-          let open_panel = NSOpenPanel::openPanel(mtm);
-          open_panel.setCanChooseFiles(true);
-          let allow_multi = open_panel_params.allowsMultipleSelection();
-          open_panel.setAllowsMultipleSelection(allow_multi);
-          let allow_dir = open_panel_params.allowsDirectories();
-          open_panel.setCanChooseDirectories(allow_dir);
-          let ok: NSModalResponse = open_panel.runModal();
-          if ok == NSModalResponseOK {
-            let url = open_panel.URLs();
-            (*handler).call((Retained::as_ptr(&url),));
-          } else {
-            (*handler).call((null_mut(),));
-          }
+        let Some(mtm) = MainThreadMarker::new() else {
+          (*handler).call((null_mut(),));
+          return;
+        };
+
+        let open_panel = NSOpenPanel::openPanel(mtm);
+        open_panel.setCanChooseFiles(true);
+        let allow_multi = open_panel_params.allowsMultipleSelection();
+        open_panel.setAllowsMultipleSelection(allow_multi);
+        let allow_dir = open_panel_params.allowsDirectories();
+        open_panel.setCanChooseDirectories(allow_dir);
+        let ok: NSModalResponse = open_panel.runModal();
+        if ok == NSModalResponseOK {
+          let url = open_panel.URLs();
+          (*handler).call((Retained::as_ptr(&url),));
+        } else {
+          (*handler).call((null_mut(),));
         }
       }
     }

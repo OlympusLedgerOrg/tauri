@@ -168,7 +168,7 @@ fn find_class<'a>(
 #[derive(Clone, Debug)]
 pub struct AndroidContext {
   pub java_vm: *mut c_void,
-  pub context_jobject: *mut c_void,
+  pub context_jobject: GlobalRef,
   pub activity_name: String,
   pub window_created: bool,
 }
@@ -177,17 +177,17 @@ impl AndroidContext {
   pub fn create_activity(&self, activity_name: &str) -> Result<ActivityId, super::JniCallError> {
     let vm = unsafe { jni::JavaVM::from_raw(self.java_vm.cast()) }?;
     let mut env = vm.attach_current_thread_as_daemon()?;
-    let main_activity = unsafe { JObject::from_raw(self.context_jobject.cast()) };
+    let main_activity = self.context_jobject.as_obj();
 
     let activity_class = find_class(
       &mut env,
-      &main_activity,
+      main_activity,
       format!("{}/{activity_name}", PACKAGE.get().unwrap()),
     )?;
 
     let activity_id = jni_call_method!(
       env,
-      &main_activity,
+      main_activity,
       "startActivity",
       "(Ljava/lang/Class;)I",
       &[(&activity_class).into()],
@@ -430,7 +430,7 @@ pub unsafe fn onActivityCreate(
     activity_id,
     AndroidContext {
       java_vm: vm.get_java_vm_pointer() as *mut _,
-      context_jobject: activity.as_obj().as_raw() as *mut _,
+      context_jobject: activity.clone(),
       activity_name,
       window_created: false,
     },

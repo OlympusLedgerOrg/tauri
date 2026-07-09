@@ -12,7 +12,8 @@ use windows::{
   Win32::{
     Foundation::{FARPROC, HWND, S_OK},
     Graphics::Gdi::{
-      GetDC, GetDeviceCaps, MonitorFromWindow, HMONITOR, LOGPIXELSX, MONITOR_DEFAULTTONEAREST,
+      GetDC, GetDeviceCaps, MonitorFromWindow, ReleaseDC, HMONITOR, LOGPIXELSX,
+      MONITOR_DEFAULTTONEAREST,
     },
     System::LibraryLoader::{GetProcAddress, LoadLibraryW},
     UI::{
@@ -91,7 +92,7 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
     }
 
     // We are on Vista or later.
-    if IsProcessDPIAware().as_bool() {
+    let dpi = if IsProcessDPIAware().as_bool() {
       // If the process is DPI aware, then scaling must be handled by the application using
       // this DPI value.
       GetDeviceCaps(Some(hdc), LOGPIXELSX) as u32
@@ -100,6 +101,8 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
       // 96 (scale factor 1.0) to prevent the window from being re-scaled by both the
       // application and the WM.
       BASE_DPI
-    }
+    };
+    let _ = ReleaseDC(Some(hwnd), hdc);
+    dpi
   }
 }

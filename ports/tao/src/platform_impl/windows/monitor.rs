@@ -191,7 +191,9 @@ impl MonitorHandle {
 
   #[inline]
   pub fn native_identifier(&self) -> String {
-    self.name().unwrap()
+    self
+      .name()
+      .unwrap_or_else(|| format!("HMONITOR({})", self.hmonitor().0 as isize))
   }
 
   #[inline]

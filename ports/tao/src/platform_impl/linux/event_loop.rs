@@ -455,7 +455,9 @@ impl<T: 'static> EventLoop<T> {
               } else {
                 Region::create()
               };
-              window.surface().unwrap().set_input_region(Some(&region));
+              if let Some(surface) = window.surface() {
+                surface.set_input_region(Some(&region));
+              }
             }
             WindowRequest::ProgressBarState(_) => unreachable!(),
             WindowRequest::BadgeCount(_, _) => unreachable!(),
