@@ -40,7 +40,7 @@ pub enum BadIcon {
   /// Produced when the provided icon width or height is equal to zero.
   #[non_exhaustive]
   DimensionsZero { width: u32, height: u32 },
-  /// Produced when the provided icon width or height is equal to zero.
+  /// Produced when `width * height` overflows while validating dimensions.
   #[non_exhaustive]
   DimensionsMultiplyOverflow { width: u32, height: u32 },
   /// Produced when underlying OS functionality failed to create the icon

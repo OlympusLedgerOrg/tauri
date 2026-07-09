@@ -166,10 +166,16 @@ define_class!(
           .webpageURL()
           .and_then(|url| url.absoluteString())
         {
-          let url = url.to_string().parse::<url::Url>().unwrap();
-          app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
-            urls: vec![url],
-          }));
+          match url.to_string().parse::<url::Url>() {
+            Ok(url) => {
+              app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
+                urls: vec![url],
+              }));
+            }
+            Err(e) => {
+              log::error!("failed to parse URL from scene:continueUserActivity: {e}");
+            }
+          }
         }
       }
     }

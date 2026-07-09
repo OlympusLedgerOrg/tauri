@@ -323,7 +323,7 @@ impl WindowFlags {
       return;
     }
 
-    if new.contains(WindowFlags::VISIBLE) {
+    if diff.contains(WindowFlags::VISIBLE) && new.contains(WindowFlags::VISIBLE) {
       unsafe {
         let _ = ShowWindow(
           window,
@@ -500,6 +500,8 @@ impl CursorFlags {
       if active_cursor_clip != cursor_clip.map(rect_to_tuple) {
         util::set_cursor_clip(cursor_clip)?;
       }
+    } else if self.contains(CursorFlags::GRABBED) {
+      util::set_cursor_clip(None)?;
     }
 
     let cursor_in_client = self.contains(CursorFlags::IN_WINDOW);

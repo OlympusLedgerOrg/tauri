@@ -302,7 +302,7 @@ impl LayoutCache {
     layout.numlock_off_keys.reserve(NUMPAD_KEYCODES.len());
     for vk in 0_u16..256 {
       let scancode =
-        unsafe { MapVirtualKeyExW(u32::from(vk), MAPVK_VK_TO_VSC_EX, Some(locale_id as HKL)) };
+        unsafe { MapVirtualKeyExW(u32::from(vk), MAPVK_VK_TO_VSC_EX, Some(locale_id)) };
       if scancode == 0 {
         continue;
       }
@@ -325,7 +325,7 @@ impl LayoutCache {
     layout.numlock_on_keys.reserve(NUMPAD_VKEYS.len());
     for vk in NUMPAD_VKEYS.iter() {
       let scancode =
-        unsafe { MapVirtualKeyExW(u32::from(vk.0), MAPVK_VK_TO_VSC_EX, Some(locale_id as HKL)) };
+        unsafe { MapVirtualKeyExW(u32::from(vk.0), MAPVK_VK_TO_VSC_EX, Some(locale_id)) };
       let unicode = Self::to_unicode_string(&key_state, *vk, scancode, locale_id);
       if let ToUnicodeResult::Str(s) = unicode {
         let static_str = get_or_insert_str(strings, s);
@@ -587,8 +587,8 @@ fn keycode_to_vkey(keycode: KeyCode, hkl: HKL) -> VIRTUAL_KEY {
     KeyCode::Enter => VK_RETURN,
     KeyCode::SuperLeft => VK_LWIN,
     KeyCode::SuperRight => VK_RWIN,
-    KeyCode::ShiftLeft => VK_RSHIFT,
-    KeyCode::ShiftRight => VK_LSHIFT,
+    KeyCode::ShiftLeft => VK_LSHIFT,
+    KeyCode::ShiftRight => VK_RSHIFT,
     KeyCode::Space => VK_SPACE,
     KeyCode::Tab => VK_TAB,
     KeyCode::Convert => VK_CONVERT,

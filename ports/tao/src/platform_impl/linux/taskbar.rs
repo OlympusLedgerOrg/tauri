@@ -16,7 +16,7 @@ struct UnityLib {
   unity_launcher_entry_set_progress: unsafe extern "C" fn(entry: *const isize, value: f64),
   unity_launcher_entry_set_progress_visible: unsafe extern "C" fn(entry: *const isize, value: i32),
   unity_launcher_entry_set_count: unsafe extern "C" fn(entry: *const isize, value: i64),
-  unity_launcher_entry_set_count_visible: unsafe extern "C" fn(entry: *const isize, value: bool),
+  unity_launcher_entry_set_count_visible: unsafe extern "C" fn(entry: *const isize, value: i32),
 }
 
 pub struct TaskbarIndicator {
@@ -87,9 +87,17 @@ impl TaskbarIndicator {
     false
   }
 
+  fn set_desktop_filename(&mut self, uri: String) {
+    if self.desktop_filename.as_deref() != Some(uri.as_str()) {
+      self.desktop_filename = Some(uri);
+      self.desktop_filename_c_str = None;
+      self.unity_entry = None;
+    }
+  }
+
   pub fn update(&mut self, progress: ProgressBarState) {
     if let Some(uri) = progress.desktop_filename {
-      self.desktop_filename = Some(uri);
+      self.set_desktop_filename(uri);
     }
 
     self.ensure_lib_load();
@@ -128,7 +136,7 @@ impl TaskbarIndicator {
 
   pub fn update_count(&mut self, count: Option<i64>, desktop_filename: Option<String>) {
     if let Some(uri) = desktop_filename {
-      self.desktop_filename = Some(uri);
+      self.set_desktop_filename(uri);
     }
 
     self.ensure_lib_load();
@@ -150,12 +158,12 @@ impl TaskbarIndicator {
         // Sets count
         if let Some(count) = count {
           unsafe { (unity_lib.unity_launcher_entry_set_count)(*unity_entry, count) };
-          unsafe { (unity_lib.unity_launcher_entry_set_count_visible)(*unity_entry, true) };
+          unsafe { (unity_lib.unity_launcher_entry_set_count_visible)(*unity_entry, 1) };
         }
         // removes the count
         else {
           unsafe { (unity_lib.unity_launcher_entry_set_count)(*unity_entry, 0) };
-          unsafe { (unity_lib.unity_launcher_entry_set_count_visible)(*unity_entry, false) };
+          unsafe { (unity_lib.unity_launcher_entry_set_count_visible)(*unity_entry, 0) };
         }
       }
     }

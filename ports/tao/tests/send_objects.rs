@@ -16,6 +16,7 @@ fn event_loop_proxy_send() {
     // ensures that `EventLoopProxy` implements `Send`
     needs_send::<tao::event_loop::EventLoopProxy<T>>();
   }
+  is_send::<()>();
 }
 
 #[test]

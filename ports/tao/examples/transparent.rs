@@ -52,12 +52,13 @@ fn main() {
           let size = window.inner_size();
           (size.width, size.height)
         };
-        surface
-          .resize(
-            NonZeroU32::new(width).unwrap(),
-            NonZeroU32::new(height).unwrap(),
-          )
-          .unwrap();
+        let Some(width) = NonZeroU32::new(width) else {
+          return;
+        };
+        let Some(height) = NonZeroU32::new(height) else {
+          return;
+        };
+        surface.resize(width, height).unwrap();
 
         let mut buffer = surface.buffer_mut().unwrap();
         buffer.fill(0);
