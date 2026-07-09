@@ -23,6 +23,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   clippy:
     strategy:
@@ -56,6 +59,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: install rust stable and clippy
         uses: dtolnay/rust-toolchain@stable
