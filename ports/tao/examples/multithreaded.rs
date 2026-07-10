@@ -88,13 +88,15 @@ fn main() {
                   false => CursorIcon::Default,
                 }),
                 "d" => window.set_decorations(!state),
-                "f" => window.set_fullscreen(match (state, modifiers.alt_key()) {
-                  (true, false) => Some(Fullscreen::Borderless(None)),
-                  (true, true) => Some(Fullscreen::Exclusive(
-                    video_modes.iter().nth(video_mode_id).unwrap().clone(),
-                  )),
-                  (false, _) => None,
-                }),
+                "f" => match (state, modifiers.alt_key()) {
+                  (true, false) => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                  (true, true) => {
+                    if let Some(video_mode) = video_modes.iter().nth(video_mode_id).cloned() {
+                      window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+                    }
+                  }
+                  (false, _) => window.set_fullscreen(None),
+                },
                 "g" => window.set_cursor_grab(state).unwrap(),
                 "h" => window.set_cursor_visible(!state),
                 "i" => {
