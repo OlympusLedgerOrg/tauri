@@ -9,12 +9,6 @@ on:
   schedule:
     - cron: '0 0 * * *'
   pull_request:
-    paths:
-      - '.github/workflows/audit.yml'
-      - '**/Cargo.lock'
-      - '**/Cargo.toml'
-      - '**/package.json'
-      - '**/pnpm-lock.yaml'
   push:
     branches:
       - dev
