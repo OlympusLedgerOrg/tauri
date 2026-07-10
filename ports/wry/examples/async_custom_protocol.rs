@@ -27,7 +27,7 @@ mod imp {
     window::WindowBuilder,
   };
   use wry::{
-    http::{header::CONTENT_TYPE, Request, Response},
+    http::{header::CONTENT_TYPE, Request, Response, StatusCode},
     WebViewBuilder,
   };
 
@@ -87,35 +87,53 @@ mod imp {
   fn get_wry_response(
     request: Request<Vec<u8>>,
   ) -> Result<http::Response<Vec<u8>>, Box<dyn std::error::Error>> {
-    let path = request.uri().path();
     // Read the file content from file path
-    let root = PathBuf::from("examples/custom_protocol");
-    let path = if path == "/" {
+    let root = std::fs::canonicalize(PathBuf::from("examples/custom_protocol"))?;
+    let request_path = request.uri().path();
+    let path = if request_path == "/" {
       "index.html"
     } else {
       //  removing leading slash
-      &path[1..]
+      &request_path[1..]
     };
-    let content = std::fs::read(std::fs::canonicalize(root.join(path))?)?;
+    let file_path = match std::fs::canonicalize(root.join(path)) {
+      Ok(file_path) if file_path.starts_with(&root) => file_path,
+      _ => return text_response(StatusCode::NOT_FOUND, "not found"),
+    };
 
-    // Return asset contents and mime types based on file extentions
+    // Return asset contents and mime types based on file extensions
     // If you don't want to do this manually, there are some crates for you.
     // Such as `infer` and `mime_guess`.
-    let mimetype = if path.ends_with(".html") || path == "/" {
-      "text/html"
+    let mimetype = if path.ends_with(".html") || request_path == "/" {
+      Some("text/html")
     } else if path.ends_with(".js") {
-      "text/javascript"
+      Some("text/javascript")
     } else if path.ends_with(".png") {
-      "image/png"
+      Some("image/png")
     } else if path.ends_with(".wasm") {
-      "application/wasm"
+      Some("application/wasm")
     } else {
-      unimplemented!();
+      None
     };
+    let Some(mimetype) = mimetype else {
+      return text_response(StatusCode::UNSUPPORTED_MEDIA_TYPE, "unsupported media type");
+    };
+    let content = std::fs::read(file_path)?;
 
     Response::builder()
       .header(CONTENT_TYPE, mimetype)
       .body(content)
+      .map_err(Into::into)
+  }
+
+  fn text_response(
+    status: StatusCode,
+    body: &str,
+  ) -> Result<http::Response<Vec<u8>>, Box<dyn std::error::Error>> {
+    Response::builder()
+      .header(CONTENT_TYPE, "text/plain")
+      .status(status)
+      .body(body.as_bytes().to_vec())
       .map_err(Into::into)
   }
 }

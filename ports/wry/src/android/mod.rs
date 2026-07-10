@@ -67,18 +67,17 @@ macro_rules! define_static_handlers {
         }
       }
     }
-    unsafe impl Send for $type_name {}
-    unsafe impl Sync for $type_name {})*
+    )*
   };
 }
 
 define_static_handlers! {
-  IPC = UnsafeIpc { handler: Box<dyn Fn(Request<String>)> };
+  IPC = UnsafeIpc { handler: Box<dyn Fn(Request<String>) + Send + Sync> };
   REQUEST_HANDLER = UnsafeRequestHandler { handler: Arc<dyn Fn(&str, Request<Vec<u8>>, bool) -> Option<HttpResponse<Cow<'static, [u8]>>> + Send + Sync> };
-  TITLE_CHANGE_HANDLER = UnsafeTitleHandler { handler: Box<dyn Fn(String)> };
-  URL_LOADING_OVERRIDE = UnsafeUrlLoadingOverride { handler: Box<dyn Fn(String) -> bool> };
-  ON_LOAD_HANDLER = UnsafeOnPageLoadHandler { handler: Box<dyn Fn(PageLoadEvent, String)> };
-  PERMISSION_HANDLER = UnsafePermissionHandler { handler: Box<dyn Fn(PermissionKind) -> PermissionResponse> };
+  TITLE_CHANGE_HANDLER = UnsafeTitleHandler { handler: Box<dyn Fn(String) + Send + Sync> };
+  URL_LOADING_OVERRIDE = UnsafeUrlLoadingOverride { handler: Box<dyn Fn(String) -> bool + Send + Sync> };
+  ON_LOAD_HANDLER = UnsafeOnPageLoadHandler { handler: Box<dyn Fn(PageLoadEvent, String) + Send + Sync> };
+  PERMISSION_HANDLER = UnsafePermissionHandler { handler: Box<dyn Fn(PermissionKind) -> PermissionResponse + Send + Sync> };
 }
 define_static_handlers! {
   WebviewId, WITH_ASSET_LOADER = bool;
@@ -305,8 +304,6 @@ impl InnerWebView {
     }
 
     if let Some(permission_handler) = attributes.permission_handler {
-      let permission_handler: Box<dyn Fn(PermissionKind) -> PermissionResponse> =
-        permission_handler;
       PERMISSION_HANDLER
         .lock()
         .unwrap()

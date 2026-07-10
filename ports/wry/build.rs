@@ -88,7 +88,7 @@ fn main() {
         {
           "pro" => "# THIS FILE IS AUTO-GENERATED. DO NOT MODIFY!!\n\n",
           "kt" => "/* THIS FILE IS AUTO-GENERATED. DO NOT MODIFY!! */\n\n",
-          _ => "String::new()",
+          _ => "",
         };
         let mut out = String::from(auto_generated_comment);
         out.push_str(&content);
