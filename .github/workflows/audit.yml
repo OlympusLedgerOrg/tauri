@@ -9,12 +9,6 @@ on:
   schedule:
     - cron: '0 0 * * *'
   pull_request:
-    paths:
-      - '.github/workflows/audit.yml'
-      - '**/Cargo.lock'
-      - '**/Cargo.toml'
-      - '**/package.json'
-      - '**/pnpm-lock.yaml'
   push:
     branches:
       - dev
@@ -29,22 +23,33 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   audit-rust:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: rust audit
-        uses: rustsec/audit-check@v2
+      - uses: actions/checkout@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit@0.22.2
+
+      - name: rust audit
+        run: cargo audit
 
   audit-js:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: npm i -g --force corepack
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
         with:
           node-version: 'lts/*'
+      - run: corepack enable
       - run: pnpm audit
