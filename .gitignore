@@ -47,7 +47,7 @@ pids
 # miscellaneous
 /.vs
 .DS_Store
-.Thumbs.db
+Thumbs.db
 *.sublime*
 .idea
 debug.log
