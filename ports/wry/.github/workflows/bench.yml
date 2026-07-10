@@ -100,6 +100,7 @@ jobs:
 
       - name: push new benchmarks
         if: github.repository == 'tauri-apps/wry' && github.ref == 'refs/heads/dev'
+        shell: bash
         run: |
           cargo run --manifest-path ./bench/Cargo.toml --bin build_benchmark_jsons
           cd gh-pages
