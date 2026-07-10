@@ -123,8 +123,37 @@ fn cookie_domain_matches(cookie_domain: Option<&str>, url_domain: Option<&str>) 
 
   url_domain
     .strip_suffix(&cookie_domain)
-    .map(|prefix| !prefix.is_empty() && prefix.ends_with('.'))
+    .map(|prefix| prefix.is_empty() || prefix.ends_with('.'))
     .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::cookie_domain_matches;
+
+  #[test]
+  fn leading_dot_cookie_domain_matches_exact_host() {
+    assert!(cookie_domain_matches(
+      Some(".example.com"),
+      Some("example.com")
+    ));
+  }
+
+  #[test]
+  fn leading_dot_cookie_domain_matches_subdomain() {
+    assert!(cookie_domain_matches(
+      Some(".example.com"),
+      Some("www.example.com")
+    ));
+  }
+
+  #[test]
+  fn cookie_domain_requires_dot_boundary() {
+    assert!(!cookie_domain_matches(
+      Some(".example.com"),
+      Some("badexample.com")
+    ));
+  }
 }
 
 static WEBVIEW_STATE: Lazy<RwLock<HashMap<String, WebViewState>>> = Lazy::new(Default::default);

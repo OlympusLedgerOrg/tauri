@@ -103,12 +103,20 @@ jobs:
         run: |
           cargo run --manifest-path ./bench/Cargo.toml --bin build_benchmark_jsons
           cd gh-pages
-          git pull --ff-only origin gh-pages
           git config user.name "tauri-bot"
           git config user.email "tauri-bot@tauri.app"
+          git pull --ff-only origin gh-pages
           git add .
+          git diff --cached --quiet && exit 0
           git commit --message "Update WRY benchmarks"
-          git push origin HEAD:gh-pages
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:gh-pages; then
+              exit 0
+            fi
+            git pull --rebase origin gh-pages
+            sleep $((attempt * 5))
+          done
+          exit 1
 
       - name: Print worker info
         # TODO: How to print this info on macOS and Windows
