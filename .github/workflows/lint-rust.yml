@@ -86,3 +86,17 @@ jobs:
           key: ${{ matrix.platform.target }}
 
       - run: ${{ matrix.platform.cargo }} clippy --target ${{ matrix.platform.target }} ${{ matrix.platform.include }}--all-targets --all-features -- -D warnings
+
+  clippy-status:
+    name: clippy
+    runs-on: ubuntu-latest
+    needs: clippy
+    if: ${{ always() }}
+
+    steps:
+      - name: Check Clippy matrix result
+        run: |
+          if [ "${{ needs.clippy.result }}" != "success" ]; then
+            echo "Clippy matrix finished with result: ${{ needs.clippy.result }}"
+            exit 1
+          fi
