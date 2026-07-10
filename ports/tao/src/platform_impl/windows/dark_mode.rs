@@ -256,7 +256,7 @@ fn is_high_contrast() -> bool {
   const HCF_HIGHCONTRASTON: u32 = 1;
 
   let mut hc = HIGHCONTRASTA {
-    cbSize: 0,
+    cbSize: std::mem::size_of::<HIGHCONTRASTA>() as _,
     dwFlags: Default::default(),
     lpszDefaultScheme: PSTR::null(),
   };

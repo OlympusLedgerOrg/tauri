@@ -36,7 +36,9 @@ fn main() {
     // from a different thread.
     loop {
       std::thread::sleep(std::time::Duration::from_secs(1));
-      event_loop_proxy.send_event(CustomEvent::Timer).ok();
+      if event_loop_proxy.send_event(CustomEvent::Timer).is_err() {
+        break;
+      }
     }
   });
 

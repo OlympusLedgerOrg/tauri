@@ -15,11 +15,12 @@ use windows::{
     System::{
       Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
       Ole::{
-        IDropTarget, IDropTarget_Impl, CF_HDROP, DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_NONE,
+        IDropTarget, IDropTarget_Impl, ReleaseStgMedium, CF_HDROP, DROPEFFECT, DROPEFFECT_COPY,
+        DROPEFFECT_NONE,
       },
       SystemServices::MODIFIERKEYS_FLAGS,
     },
-    UI::Shell::{DragFinish, DragQueryFileW, HDROP},
+    UI::Shell::{DragQueryFileW, HDROP},
   },
 };
 
@@ -45,10 +46,7 @@ impl FileDropHandler {
     }
   }
 
-  unsafe fn iterate_filenames<F>(
-    data_obj: windows_core::Ref<'_, IDataObject>,
-    callback: F,
-  ) -> Option<HDROP>
+  unsafe fn iterate_filenames<F>(data_obj: windows_core::Ref<'_, IDataObject>, callback: F) -> bool
   where
     F: Fn(PathBuf),
   {
@@ -65,7 +63,7 @@ impl FileDropHandler {
       .expect("Received null IDataObject")
       .GetData(&drop_format)
     {
-      Ok(medium) => {
+      Ok(mut medium) => {
         let hglobal = medium.u.hGlobal;
         let hdrop = HDROP(hglobal.0 as _);
 
@@ -80,15 +78,15 @@ impl FileDropHandler {
           let character_count = DragQueryFileW(hdrop, i, Some(&mut lpsz_file)) as usize;
           let str_len = character_count + 1;
 
-          // Fill path_buf with the null-terminated file name
-          let mut path_buf = Vec::with_capacity(str_len);
-          DragQueryFileW(hdrop, i, std::mem::transmute(path_buf.spare_capacity_mut()));
-          path_buf.set_len(str_len);
+          // Fill path_buf with the null-terminated file name.
+          let mut path_buf = vec![0u16; str_len];
+          DragQueryFileW(hdrop, i, Some(&mut path_buf));
 
           callback(OsString::from_wide(&path_buf[0..character_count]).into());
         }
 
-        Some(hdrop)
+        ReleaseStgMedium(&mut medium);
+        true
       }
       Err(error) => {
         debug!(
@@ -102,7 +100,7 @@ impl FileDropHandler {
             _ => "Unexpected error occured while processing dropped/hovered item.",
           }
         );
-        None
+        false
       }
     }
   }
@@ -125,7 +123,7 @@ impl IDropTarget_Impl for FileDropHandler_Impl {
           event: HoveredFile(filename),
         });
       });
-      let hovered_is_valid = hdrop.is_some();
+      let hovered_is_valid = hdrop;
       let cursor_effect = if hovered_is_valid {
         DROPEFFECT_COPY
       } else {
@@ -170,15 +168,12 @@ impl IDropTarget_Impl for FileDropHandler_Impl {
   ) -> windows::core::Result<()> {
     use crate::event::WindowEvent::DroppedFile;
     unsafe {
-      let hdrop = FileDropHandler::iterate_filenames(pDataObj, |filename| {
+      FileDropHandler::iterate_filenames(pDataObj, |filename| {
         (self.send_event)(Event::WindowEvent {
           window_id: SuperWindowId(WindowId(self.window.0 as _)),
           event: DroppedFile(filename),
         });
       });
-      if let Some(hdrop) = hdrop {
-        DragFinish(hdrop);
-      }
     }
     Ok(())
   }

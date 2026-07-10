@@ -6,7 +6,13 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{thread, time};
+use std::{
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+  },
+  thread, time,
+};
 
 use tao::{
   event::{Event, WindowEvent},
@@ -25,9 +31,16 @@ fn main() {
     .build(&event_loop)
     .unwrap();
 
-  thread::spawn(move || loop {
-    thread::sleep(time::Duration::from_secs(1));
-    window.request_redraw();
+  let shutdown = Arc::new(AtomicBool::new(false));
+  let redraw_shutdown = Arc::clone(&shutdown);
+  thread::spawn(move || {
+    while !redraw_shutdown.load(Ordering::Relaxed) {
+      thread::sleep(time::Duration::from_secs(1));
+      if redraw_shutdown.load(Ordering::Relaxed) {
+        break;
+      }
+      window.request_redraw();
+    }
   });
 
   event_loop.run(move |event, _, control_flow| {
@@ -37,7 +50,10 @@ fn main() {
 
     match event {
       Event::WindowEvent { event, .. } => match event {
-        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+        WindowEvent::CloseRequested => {
+          shutdown.store(true, Ordering::Relaxed);
+          *control_flow = ControlFlow::Exit;
+        }
         _ => (),
       },
       Event::RedrawRequested(_) => {

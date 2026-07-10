@@ -46,7 +46,11 @@ fn main() {
             // appears on this monitor instead when we go fullscreen
             let previous_video_mode = video_modes.iter().nth(video_mode_id).cloned();
             video_modes = window.current_monitor().unwrap().video_modes().collect();
-            video_mode_id = video_mode_id.min(video_modes.len());
+            if video_modes.is_empty() {
+              video_mode_id = 0;
+              continue;
+            }
+            video_mode_id = video_mode_id.min(video_modes.len().saturating_sub(1));
             let video_mode = video_modes.iter().nth(video_mode_id);
 
             // Different monitors may support different video modes,
@@ -84,13 +88,15 @@ fn main() {
                   false => CursorIcon::Default,
                 }),
                 "d" => window.set_decorations(!state),
-                "f" => window.set_fullscreen(match (state, modifiers.alt_key()) {
-                  (true, false) => Some(Fullscreen::Borderless(None)),
-                  (true, true) => Some(Fullscreen::Exclusive(
-                    video_modes.iter().nth(video_mode_id).unwrap().clone(),
-                  )),
-                  (false, _) => None,
-                }),
+                "f" => match (state, modifiers.alt_key()) {
+                  (true, false) => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                  (true, true) => {
+                    if let Some(video_mode) = video_modes.iter().nth(video_mode_id).cloned() {
+                      window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+                    }
+                  }
+                  (false, _) => window.set_fullscreen(None),
+                },
                 "g" => window.set_cursor_grab(state).unwrap(),
                 "h" => window.set_cursor_visible(!state),
                 "i" => {
@@ -137,9 +143,12 @@ fn main() {
                 _ => (),
               },
               ArrowRight | ArrowLeft => {
+                if video_modes.is_empty() {
+                  continue;
+                }
                 video_mode_id = match &key {
                   ArrowLeft => video_mode_id.saturating_sub(1),
-                  ArrowRight => (video_modes.len() - 1).min(video_mode_id + 1),
+                  ArrowRight => video_modes.len().saturating_sub(1).min(video_mode_id + 1),
                   _ => unreachable!(),
                 };
                 println!(

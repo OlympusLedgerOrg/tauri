@@ -1,7 +1,7 @@
 <img src=".github/splash.png" alt="TAO - Window Creation Library" />
 
-[![](https://img.shields.io/crates/v/tao?style=flat-square)](https://crates.io/crates/tao)
-[![](https://img.shields.io/docsrs/tao?style=flat-square)](https://docs.rs/tao/)
+[![Crates.io version](https://img.shields.io/crates/v/tao?style=flat-square)](https://crates.io/crates/tao)
+[![docs.rs documentation](https://img.shields.io/docsrs/tao?style=flat-square)](https://docs.rs/tao/)
 [![License](https://img.shields.io/badge/License-Apache%202-green.svg)](https://opencollective.com/tauri)
 [![Chat Server](https://img.shields.io/badge/chat-discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![website](https://img.shields.io/badge/website-tauri.app-purple.svg)](https://tauri.app)

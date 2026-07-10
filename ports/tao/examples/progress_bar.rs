@@ -52,37 +52,39 @@ fn main() {
           ..
         } => {
           if modifiers.is_empty() {
-            let mut progress: u64 = 0;
-            match key_str {
-              "1" => progress = 0,
-              "2" => progress = 25,
-              "3" => progress = 50,
-              "4" => progress = 75,
-              "5" => progress = 100,
-              _ => {}
-            }
+            let progress = match key_str {
+              "1" => Some(0),
+              "2" => Some(25),
+              "3" => Some(50),
+              "4" => Some(75),
+              "5" => Some(100),
+              _ => None,
+            };
 
-            window.set_progress_bar(ProgressBarState {
-              progress: Some(progress),
-              state: Some(ProgressState::Normal),
-              desktop_filename: None,
-            });
+            if let Some(progress) = progress {
+              window.set_progress_bar(ProgressBarState {
+                progress: Some(progress),
+                state: Some(ProgressState::Normal),
+                desktop_filename: None,
+              });
+            }
           } else if modifiers.control_key() {
-            let mut state = ProgressState::None;
-            match key_str {
-              "1" => state = ProgressState::None,
-              "2" => state = ProgressState::Normal,
-              "3" => state = ProgressState::Indeterminate,
-              "4" => state = ProgressState::Paused,
-              "5" => state = ProgressState::Error,
-              _ => {}
-            }
+            let state = match key_str {
+              "1" => Some(ProgressState::None),
+              "2" => Some(ProgressState::Normal),
+              "3" => Some(ProgressState::Indeterminate),
+              "4" => Some(ProgressState::Paused),
+              "5" => Some(ProgressState::Error),
+              _ => None,
+            };
 
-            window.set_progress_bar(ProgressBarState {
-              progress: None,
-              state: Some(state),
-              desktop_filename: None,
-            });
+            if let Some(state) = state {
+              window.set_progress_bar(ProgressBarState {
+                progress: None,
+                state: Some(state),
+                desktop_filename: None,
+              });
+            }
           }
         }
         _ => {}

@@ -33,7 +33,7 @@ pub fn get_raw_input_device_list() -> Option<Vec<RAWINPUTDEVICELIST>> {
   let mut buffer = Vec::with_capacity(num_devices as _);
 
   let num_stored =
-    unsafe { GetRawInputDeviceList(Some(buffer.as_ptr() as _), &mut num_devices, list_size) };
+    unsafe { GetRawInputDeviceList(Some(buffer.as_mut_ptr() as _), &mut num_devices, list_size) };
 
   if num_stored == u32::MAX {
     return None;

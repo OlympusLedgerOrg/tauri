@@ -1538,20 +1538,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_TOUCH => {
       let pcount = usize::from(util::LOWORD(wparam.0 as u32));
-      let mut inputs: Vec<TOUCHINPUT> = Vec::with_capacity(pcount);
-      let uninit_inputs = inputs.spare_capacity_mut();
+      let mut inputs: Vec<TOUCHINPUT> = vec![TOUCHINPUT::default(); pcount];
       let htouch = HTOUCHINPUT(lparam.0 as _);
-      if GetTouchInputInfo(
-        htouch,
-        mem::transmute::<
-          &mut [std::mem::MaybeUninit<windows::Win32::UI::Input::Touch::TOUCHINPUT>],
-          &mut [windows::Win32::UI::Input::Touch::TOUCHINPUT],
-        >(uninit_inputs),
-        mem::size_of::<TOUCHINPUT>() as i32,
-      )
-      .is_ok()
-      {
-        inputs.set_len(pcount);
+      if GetTouchInputInfo(htouch, &mut inputs, mem::size_of::<TOUCHINPUT>() as i32).is_ok() {
         for input in &inputs {
           let mut location = POINT {
             x: input.x / 100,

@@ -19,6 +19,10 @@ pub fn spawn(device_tx: async_channel::Sender<DeviceEvent>) {
     let xlib = xlib::Xlib::open().unwrap();
     let xinput2 = xinput2::XInput2::open().unwrap();
     let display = (xlib.XOpenDisplay)(ptr::null());
+    if display.is_null() {
+      log::warn!("Failed to open X11 display for device event thread");
+      return;
+    }
     let root = (xlib.XDefaultRootWindow)(display);
     // TODO Add more device event mask
     let mask = xinput2::XI_RawKeyPressMask | xinput2::XI_RawKeyReleaseMask;
@@ -51,6 +55,7 @@ pub fn spawn(device_tx: async_channel::Sender<DeviceEvent>) {
       if event_type == xlib::GenericEvent {
         let mut xev = event.generic_event_cookie;
         if (xlib.XGetEventData)(display, &mut xev) == xlib::True {
+          let mut should_break = false;
           match xev.evtype {
             xinput2::XI_RawKeyPress | xinput2::XI_RawKeyRelease => {
               let xev: &xinput2::XIRawEvent = &*(xev.data as *const _);
@@ -68,10 +73,14 @@ pub fn spawn(device_tx: async_channel::Sender<DeviceEvent>) {
 
               if let Err(e) = device_tx.send_blocking(DeviceEvent::Key(event)) {
                 log::info!("Failed to send device event {} since receiver is closed. Closing x11 thread along with it", e);
-                break;
+                should_break = true;
               }
             }
             _ => {}
+          }
+          (xlib.XFreeEventData)(display, &mut xev);
+          if should_break {
+            break;
           }
         }
       }
