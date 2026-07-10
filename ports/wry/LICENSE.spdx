@@ -1,7 +1,7 @@
 SPDXVersion: SPDX-2.1
 DataLicense: CC0-1.0
 PackageName: wry
-DataFormat: SPDXRef-1
+SPDXID: SPDXRef-1
 PackageSupplier: Organization: The Tauri Programme in the Commons Conservancy
 PackageHomePage: https://tauri.app
 PackageLicenseDeclared: Apache-2.0

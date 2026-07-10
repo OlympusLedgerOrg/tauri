@@ -23,7 +23,7 @@ pub enum Error {
   UnsupportedParentWidget(String),
   #[error("Failed to initialize the script")]
   InitScriptError,
-  #[error("Bad RPC request: {0} ((1))")]
+  #[error("Bad RPC request: {0} ({1})")]
   RpcScriptError(String, String),
   #[error(transparent)]
   NulError(#[from] std::ffi::NulError),

@@ -46,7 +46,11 @@ define_class!(
             let handler = &self.ivars().handler;
             // if !handler.is_null() {
             let title: *const NSString = msg_send![object, title];
-            handler((*title).to_string());
+            let title = title
+              .as_ref()
+              .map(|title| title.to_string())
+              .unwrap_or_default();
+            handler(title);
             // }
           }
         }

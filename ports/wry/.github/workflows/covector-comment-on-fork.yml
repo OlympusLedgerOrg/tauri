@@ -24,7 +24,7 @@ jobs:
       (github.event.workflow_run.head_repository.full_name != github.repository || github.actor == 'dependabot[bot]')
     steps:
       - name: covector status
-        uses: jbolda/covector/packages/action@covector-v0
+        uses: jbolda/covector/packages/action@01d02a39aef4bcb0150d8b3589a990fdd759b9b0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: 'status'
