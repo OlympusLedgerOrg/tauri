@@ -151,7 +151,8 @@ jobs:
           if [ "${BUNDLER}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-bundler\""; fi
           if [ "${CLI}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-cli\""; fi
           if [ "${MACOSSIGN}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-macos-sign\""; fi
-          echo "matrix=[$crates]" >> "$GITHUB_OUTPUT"
+          printf -v matrix '%s,' "${crates[@]}"
+          echo "matrix=[${matrix%,}]" >> "$GITHUB_OUTPUT"
     outputs:
       matrix: ${{ steps.create-matrix.outputs.matrix }}
 

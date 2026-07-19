@@ -42,7 +42,7 @@ sudo apt install libgtk-4-dev libxdo-dev
 
 ## Dependencies in FreeBSD
 
-Install this dependencies in order to compile `muda`. Instructions using `pkg`:
+Install these dependencies to compile `muda` using `pkg`:
 
 ```sh
 pkg install -y rust glib pkgconf gtk4
