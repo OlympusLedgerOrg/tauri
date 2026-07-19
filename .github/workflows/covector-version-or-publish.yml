@@ -34,8 +34,9 @@ jobs:
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2 librsvg2-dev
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev libfuse2 librsvg2-dev
 
       - uses: Swatinem/rust-cache@v2
 
@@ -86,8 +87,9 @@ jobs:
 
       - name: install Linux dependencies
         run: |
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev librsvg2-dev
 
       - name: covector version or publish (publish when no change files present)
         uses: jbolda/covector/packages/action@covector-v0

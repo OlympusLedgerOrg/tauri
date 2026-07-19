@@ -679,11 +679,16 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
-    let _ = self.run_on_main_thread(move || unsafe {
-      let mtm = objc2::MainThreadMarker::new().unwrap();
-      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
-      tx.send(ui_application.supportsMultipleScenes()).unwrap();
-    });
+    if self
+      .run_on_main_thread(move || {
+        let mtm = objc2::MainThreadMarker::new().unwrap();
+        let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+        tx.send(ui_application.supportsMultipleScenes()).unwrap();
+      })
+      .is_err()
+    {
+      return false;
+    }
     rx.recv().unwrap()
   }
 }
@@ -1263,11 +1268,9 @@ impl<R: Runtime> App<R> {
   /// Whether the application supports multiple windows.
   #[cfg(target_os = "ios")]
   pub fn supports_multiple_windows(&self) -> bool {
-    unsafe {
-      let mtm = objc2::MainThreadMarker::new().unwrap();
-      let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
-      ui_application.supportsMultipleScenes()
-    }
+    let mtm = objc2::MainThreadMarker::new().unwrap();
+    let ui_application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+    ui_application.supportsMultipleScenes()
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
@@ -2090,7 +2093,7 @@ tauri::Builder::default()
   ///
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
-  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  /// and `webkit_web_context_register_uri_scheme` on Linux.
   ///
   /// # Arguments
   ///

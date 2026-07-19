@@ -263,7 +263,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  pub fn on_navigation<F: Fn(&Url) -> bool + Send + Sync + 'static>(mut self, f: F) -> Self {
     self.webview_builder = self.webview_builder.on_navigation(f);
     self
   }
@@ -323,7 +323,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// Defines a closure to be executed when the document title changes.
   ///
   /// Note that it may run before or after the navigation event.
-  pub fn on_document_title_changed<F: Fn(WebviewWindow<R>, String) + Send + 'static>(
+  pub fn on_document_title_changed<F: Fn(WebviewWindow<R>, String) + Send + Sync + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -717,7 +717,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   #[must_use]
-  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::object::IsA<gtk::Window>) -> Self {
     self.window_builder = self.window_builder.transient_for_raw(parent);
     self
   }
@@ -1401,7 +1401,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
       target_os = "openbsd",
     )
   ))]
-  pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
+  pub fn with_related_view(mut self, related_view: webkit::WebView) -> Self {
     self.webview_builder = self.webview_builder.with_related_view(related_view);
     self
   }
@@ -2385,7 +2385,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// The closure is executed on the main thread.
   ///
-  /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
+  /// Note that `webview2-com`, `webkit`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
   /// Therefore it's recommended to pin Tauri to at least a minor version when you're using `with_webview`.
   ///
   /// # Examples
@@ -2400,9 +2400,9 @@ impl<R: Runtime> WebviewWindow<R> {
   ///       main_webview.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
-  ///           // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
-  ///           use webkit2gtk::WebViewExt;
+  ///           // see <https://docs.rs/webkit6/latest/webkit6/struct.WebView.html>
+  ///           // and <https://docs.rs/webkit6/latest/webkit6/prelude/trait.WebViewExt.html>
+  ///           use webkit::prelude::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///

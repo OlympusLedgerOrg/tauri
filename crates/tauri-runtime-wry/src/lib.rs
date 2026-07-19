@@ -33,6 +33,14 @@ use tauri_runtime::{
   UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+use gtk::glib::object::Cast;
 #[cfg(target_vendor = "apple")]
 use objc2::rc::Retained;
 #[cfg(target_os = "android")]
@@ -138,7 +146,7 @@ use std::{
 };
 
 pub type WebviewId = u32;
-type IpcHandler = dyn Fn(Request<String>) + 'static;
+type IpcHandler = dyn Fn(Request<String>) + Send + Sync + 'static;
 
 #[cfg(not(debug_assertions))]
 mod dialog;
@@ -940,7 +948,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size) on creation
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size) on creation.
+  ///
+  /// On Linux/GTK4, this currently falls back to the full monitor geometry because
+  /// GDK4 no longer exposes a portable taskbar/panel-aware work area.
   ///
   /// ## Platform-specific
   ///
@@ -952,7 +963,10 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size).
+  ///
+  /// On Linux/GTK4, this currently falls back to the full monitor geometry because
+  /// GDK4 no longer exposes a portable taskbar/panel-aware work area.
   /// on creation with a margin
   ///
   /// ## Platform-specific
@@ -1089,7 +1103,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn transient_for(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  fn transient_for(mut self, parent: &impl gtk::glib::object::IsA<gtk::Window>) -> Self {
     self.inner = self.inner.with_transient_for(parent);
     self
   }
@@ -3330,7 +3344,9 @@ fn handle_user_message<T: UserEvent>(
             target_os = "netbsd",
             target_os = "openbsd"
           ))]
-          WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
+          WindowMessage::GtkWindow(tx) => tx
+            .send(GtkWindow(window.gtk_window().clone().into()))
+            .unwrap(),
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -4564,7 +4580,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      gtk_window: window.gtk_window(),
+      gtk_window: window.gtk_window().upcast_ref(),
       #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -5149,7 +5165,7 @@ You may have it installed on another user account, but it is not available for t
       target_os = "ios",
       target_os = "android"
     ))]
-    WebviewKind::WindowChild => webview_builder.build_as_child(&window),
+    WebviewKind::WindowChild => webview_builder.build_as_child(window),
     WebviewKind::WindowContent => {
       #[cfg(any(
         target_os = "windows",
@@ -5157,7 +5173,7 @@ You may have it installed on another user account, but it is not available for t
         target_os = "ios",
         target_os = "android"
       ))]
-      let builder = webview_builder.build(&window);
+      let builder = webview_builder.build(window);
       #[cfg(not(any(
         target_os = "windows",
         target_os = "macos",

@@ -31,13 +31,13 @@ type UriSchemeProtocolHandler = dyn Fn(&str, http::Request<Vec<u8>>, Box<dyn FnO
 type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 
-type NavigationHandler = dyn Fn(&Url) -> bool + Send;
+type NavigationHandler = dyn Fn(&Url) -> bool + Send + Sync;
 
 type NewWindowHandler = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse + Send;
 
-type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
+type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send + Sync;
 
-type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
+type DocumentTitleChangedHandler = dyn Fn(String) + Send + Sync + 'static;
 
 type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
@@ -101,7 +101,7 @@ pub struct NewWindowOpener {
     target_os = "netbsd",
     target_os = "openbsd",
   ))]
-  pub webview: webkit2gtk::WebView,
+  pub webview: webkit::WebView,
   /// The instance of the webview that initiated the new window request.
   ///
   /// The target webview environment **MUST** match the environment of the opener webview. See [`WebviewAttributes::with_environment`].
@@ -419,7 +419,7 @@ pub struct WebviewAttributes {
     target_os = "netbsd",
     target_os = "openbsd",
   ))]
-  pub related_view: Option<webkit2gtk::WebView>,
+  pub related_view: Option<webkit::WebView>,
 
   #[cfg(target_os = "macos")]
   pub webview_configuration: Option<objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>>,
@@ -919,7 +919,8 @@ impl WebviewAttributes {
 }
 
 /// IPC handler.
-pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send>;
+pub type WebviewIpcHandler<T, R> =
+  Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send + Sync>;
 
 /// An initialization script
 #[derive(Debug, Clone)]
