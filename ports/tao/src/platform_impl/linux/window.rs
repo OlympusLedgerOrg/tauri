@@ -712,14 +712,15 @@ impl Window {
 
         Ok(
           rwh_06::WaylandWindowHandle::new({
-            let ptr = surface
+            surface
               .downcast::<gdk4_wayland::WaylandSurface>()
               .unwrap()
               .wl_surface()
               .unwrap()
               .id()
-              .as_ptr();
-            std::ptr::NonNull::new(ptr as *mut _).expect("wl_surface will never be null")
+              .as_ptr()
+              .expect("wl_surface will never be null")
+              .cast()
           })
           .into(),
         )
@@ -750,14 +751,15 @@ impl Window {
 
       Ok(
         rwh_06::WaylandDisplayHandle::new({
-          let ptr = display
+          display
             .downcast::<gdk4_wayland::WaylandDisplay>()
             .unwrap()
             .wl_display()
             .unwrap()
             .id()
-            .as_ptr();
-          std::ptr::NonNull::new(ptr as *mut _).expect("wl_display will never be null")
+            .as_ptr()
+            .expect("wl_display will never be null")
+            .cast()
         })
         .into(),
       )
@@ -837,6 +839,12 @@ impl Window {
     }
   }
 }
+
+// The GTK objects are retained for WebView construction, while window mutation and destruction
+// are marshalled through the event-loop channel. Tauri's cross-thread event proxy requires this
+// handle contract, matching Tao's other platform backends.
+unsafe impl Send for Window {}
+unsafe impl Sync for Window {}
 
 #[non_exhaustive]
 pub enum WindowRequest {
