@@ -9,6 +9,7 @@
 node_modules/
 target/
 dist/
+/vendor/
 
 # lock files
 pnpm-lock.yaml
