@@ -137,6 +137,25 @@ mod tests {
         let error = BadIcon::OsError(io::Error::new(io::ErrorKind::Other, "icon error"));
         assert!(error.source().is_some());
     }
+
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        feature = "gtk"
+    ))]
+    #[test]
+    fn bad_icon_png_error_exposes_inner_source() {
+        let error = BadIcon::PngEncodingError(png::EncodingError::IoError(io::Error::new(
+            io::ErrorKind::Other,
+            "png error",
+        )));
+        assert!(error.source().is_some());
+    }
 }
 
 /// For platforms which don't have window icons (e.g. web)

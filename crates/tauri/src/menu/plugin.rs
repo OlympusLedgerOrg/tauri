@@ -161,12 +161,13 @@ impl CheckMenuItemPayload {
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
+      let owner = item.channel_owner();
       webview
         .state::<MenuChannels>()
         .0
         .lock()
         .unwrap()
-        .insert(item.id().clone(), handler);
+        .insert(item.id().clone(), (owner, handler));
     }
 
     Ok(item)
@@ -217,12 +218,13 @@ impl IconMenuItemPayload {
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
+      let owner = item.channel_owner();
       webview
         .state::<MenuChannels>()
         .0
         .lock()
         .unwrap()
-        .insert(item.id().clone(), handler);
+        .insert(item.id().clone(), (owner, handler));
     }
 
     Ok(item)
@@ -256,12 +258,13 @@ impl MenuItemPayload {
 
     if let Some(handler) = self.handler {
       let handler = handler.channel_on(webview.clone());
+      let owner = item.channel_owner();
       webview
         .state::<MenuChannels>()
         .0
         .lock()
         .unwrap()
-        .insert(item.id().clone(), handler);
+        .insert(item.id().clone(), (owner, handler));
     }
 
     Ok(item)
@@ -368,7 +371,7 @@ fn new<R: Runtime>(
   let options = options.unwrap_or_default();
   let mut resources_table = webview.resources_table();
 
-  let (rid, id) = match kind {
+  let (rid, id, owner) = match kind {
     ItemKind::Menu => {
       let mut builder = MenuBuilder::new(&webview);
       if let Some(id) = options.id {
@@ -381,9 +384,10 @@ fn new<R: Runtime>(
       }
       let menu = builder.build()?;
       let id = menu.id().clone();
+      let owner = menu.channel_owner();
       let rid = resources_table.add(menu);
 
-      (rid, id)
+      (rid, id, owner)
     }
 
     ItemKind::Submenu => {
@@ -396,9 +400,10 @@ fn new<R: Runtime>(
       }
       .create_item(&webview, &resources_table)?;
       let id = submenu.id().clone();
+      let owner = submenu.channel_owner();
       let rid = resources_table.add(submenu);
 
-      (rid, id)
+      (rid, id, owner)
     }
 
     ItemKind::MenuItem => {
@@ -412,8 +417,9 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
+      let owner = item.channel_owner();
       let rid = resources_table.add(item);
-      (rid, id)
+      (rid, id, owner)
     }
 
     ItemKind::Predefined => {
@@ -423,8 +429,9 @@ fn new<R: Runtime>(
       }
       .create_item(&webview, &resources_table)?;
       let id = item.id().clone();
+      let owner = item.channel_owner();
       let rid = resources_table.add(item);
-      (rid, id)
+      (rid, id, owner)
     }
 
     ItemKind::Check => {
@@ -439,8 +446,9 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
+      let owner = item.channel_owner();
       let rid = resources_table.add(item);
-      (rid, id)
+      (rid, id, owner)
     }
 
     ItemKind::Icon => {
@@ -455,12 +463,17 @@ fn new<R: Runtime>(
       }
       .create_item(&webview, &resources_table)?;
       let id = item.id().clone();
+      let owner = item.channel_owner();
       let rid = resources_table.add(item);
-      (rid, id)
+      (rid, id, owner)
     }
   };
 
-  channels.0.lock().unwrap().insert(id.clone(), handler);
+  channels
+    .0
+    .lock()
+    .unwrap()
+    .insert(id.clone(), (owner, handler));
 
   Ok((rid, id))
 }
@@ -885,11 +898,26 @@ fn set_icon<R: Runtime>(
   )
 }
 
-struct MenuChannels(Mutex<HashMap<MenuId, Channel<MenuId>>>);
+struct MenuChannels(Mutex<HashMap<MenuId, (u64, Channel<MenuId>)>>);
+
+fn remove_menu_channel_if_owner(
+  channels: &mut HashMap<MenuId, (u64, Channel<MenuId>)>,
+  id: &MenuId,
+  owner: u64,
+) {
+  if channels
+    .get(id)
+    .is_some_and(|(registered_owner, _)| *registered_owner == owner)
+  {
+    channels.remove(id);
+  }
+}
 
 // Called in `Menu`'s `Drop` to clean up the event handlers
-pub(crate) fn remove_menu_channel<R: Runtime>(app: &AppHandle<R>, id: &MenuId) {
-  app.state::<MenuChannels>().0.lock().unwrap().remove(id);
+pub(crate) fn remove_menu_channel<R: Runtime>(app: &AppHandle<R>, id: &MenuId, owner: u64) {
+  let menu_channels = app.state::<MenuChannels>();
+  let mut channels = menu_channels.0.lock().unwrap();
+  remove_menu_channel_if_owner(&mut channels, id, owner);
 }
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
@@ -907,7 +935,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
           .lock()
           .unwrap()
           .get(&e.id)
-          .cloned();
+          .map(|(_, channel)| channel.clone());
         if let Some(channel) = channel {
           let _ = channel.send(e.id.clone());
         }
@@ -939,4 +967,21 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_icon,
     ])
     .build()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn stale_owner_cannot_remove_replacement_channel() {
+    let id = MenuId::new("shared");
+    let channel = Channel::<MenuId>::new(|_| Ok(()));
+    let channel_id = channel.id();
+    let mut channels = HashMap::from([(id.clone(), (2, channel))]);
+
+    remove_menu_channel_if_owner(&mut channels, &id, 1);
+
+    assert_eq!(channels.get(&id).unwrap().1.id(), channel_id);
+  }
 }

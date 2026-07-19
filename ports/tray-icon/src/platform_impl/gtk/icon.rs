@@ -6,7 +6,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{fs::File, io::BufWriter, path::Path};
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+    path::Path,
+};
 
 use crate::icon::{BadIcon, PIXEL_SIZE};
 
@@ -19,7 +23,7 @@ pub struct PlatformIcon {
 
 impl PlatformIcon {
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
-        if !rgba.len().is_multiple_of(PIXEL_SIZE) {
+        if rgba.len() % PIXEL_SIZE != 0 {
             return Err(BadIcon::ByteCountNotDivisibleBy4 {
                 byte_count: rgba.len(),
             });
@@ -45,14 +49,16 @@ impl PlatformIcon {
 
     pub fn write_to_png(&self, path: impl AsRef<Path>) -> crate::Result<()> {
         let png = File::create(path)?;
-        let w = &mut BufWriter::new(png);
+        let mut output = BufWriter::new(png);
 
-        let mut encoder = png::Encoder::new(w, self.width as _, self.height as _);
+        let mut encoder = png::Encoder::new(&mut output, self.width as _, self.height as _);
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
 
         let mut writer = encoder.write_header()?;
         writer.write_image_data(&self.rgba)?;
+        drop(writer);
+        output.flush()?;
 
         Ok(())
     }

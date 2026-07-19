@@ -2,4 +2,4 @@
 "tauri": "patch:bug"
 ---
 
-Remove the `Channel` used to send event to JavaScript side on dropping the menu
+Remove the `Channel` used to send events to the JavaScript side when the menu is dropped.

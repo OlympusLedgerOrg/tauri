@@ -32,13 +32,13 @@
 //! #### Arch Linux / Manjaro:
 //!
 //! ```sh
-//! pacman -S gtk3 xdotool
+//! pacman -S gtk4 xdotool
 //! ```
 //!
 //! #### Debian / Ubuntu:
 //!
 //! ```sh
-//! sudo apt install libgtk-3-dev libxdo-dev
+//! sudo apt install libgtk-4-dev libxdo-dev
 //! ```
 //!
 //! # Example
@@ -389,7 +389,7 @@ pub trait ContextMenu {
 
     /// Remove the menu subclass handler from the given hwnd
     ///
-    /// The view must be a pointer to a valid `NSView`.
+    /// The `hwnd` must be a valid window handle.
     ///
     /// # Safety
     ///
@@ -474,8 +474,8 @@ pub trait ContextMenu {
     }
 
     /// Casts this context menu to a [`Submenu`], and panics if it wasn't.
-    fn as_submenu_unchecked(&self) -> &Menu {
-        self.as_menu().expect("Not a Submenu")
+    fn as_submenu_unchecked(&self) -> &Submenu {
+        self.as_submenu().expect("Not a Submenu")
     }
 
     /// Returns a GTK-agnostic menu representation for Linux KSNI tray menus.

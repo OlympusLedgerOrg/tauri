@@ -31,13 +31,13 @@ Menu Utilities library for Desktop Applications.
 #### Arch Linux / Manjaro:
 
 ```sh
-pacman -S gtk3 xdotool
+pacman -S gtk4 xdotool
 ```
 
 #### Debian / Ubuntu:
 
 ```sh
-sudo apt install libgtk-3-dev libxdo-dev
+sudo apt install libgtk-4-dev libxdo-dev
 ```
 
 ## Dependencies in FreeBSD
@@ -45,7 +45,7 @@ sudo apt install libgtk-3-dev libxdo-dev
 Install this dependencies in order to compile `muda`. Instructions using `pkg`:
 
 ```sh
-pkg install -y rust glib pkgconf gtk3
+pkg install -y rust glib pkgconf gtk4
 ```
 
 ## Example

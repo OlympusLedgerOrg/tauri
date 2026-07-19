@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 // Copyright 2022-2022 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.inner
+// SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use std::{cell::RefCell, mem, rc::Rc};
@@ -224,21 +224,21 @@ fn test_about_metadata() {
 
     assert_eq!(
         AboutMetadata {
-            version: Some("Version: 1.inner".into()),
+            version: Some("Version: 1.0".into()),
             ..Default::default()
         }
         .full_version(),
-        Some("Version: 1.inner".into())
+        Some("Version: 1.0".into())
     );
 
     assert_eq!(
         AboutMetadata {
-            version: Some("Version: 1.inner".into()),
+            version: Some("Version: 1.0".into()),
             short_version: Some("Universal".into()),
             ..Default::default()
         }
         .full_version(),
-        Some("Version: 1.inner (Universal)".into())
+        Some("Version: 1.0 (Universal)".into())
     );
 }
 

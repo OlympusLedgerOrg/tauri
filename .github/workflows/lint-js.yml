@@ -19,7 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: npm i -g --force corepack
+        with:
+          persist-credentials: false
+      - run: |
+          npm i -g --force corepack@0.34.0
+          corepack enable pnpm
       - uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
@@ -31,7 +35,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: npm i -g --force corepack
+        with:
+          persist-credentials: false
+      - run: |
+          npm i -g --force corepack@0.34.0
+          corepack enable pnpm
       - uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'

@@ -180,7 +180,7 @@
 
   function minimize() {
     selectedWebview.minimize()
-    setTimeout(selectedWebview.unminimize, 2000)
+    setTimeout(() => selectedWebview.unminimize(), 2000)
   }
 
   function changeIcon() {

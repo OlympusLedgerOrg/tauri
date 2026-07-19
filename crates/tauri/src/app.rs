@@ -536,7 +536,7 @@ impl<R: Runtime> AppHandle<R> {
   pub fn plugin_boxed(&self, mut plugin: Box<dyn Plugin<R>>) -> crate::Result<()> {
     let mut store = self.manager().plugins.lock().unwrap();
     store.initialize(&mut plugin, self, &self.config().plugins)?;
-    store.register(plugin);
+    store.register_initialized(plugin);
 
     Ok(())
   }

@@ -159,5 +159,5 @@ fn temp_icon_path_preference_order() {
         assert_eq!(dir2, PathBuf::from(format!("{}/tray-icon", runtime_dir)));
     }
 
-    assert_eq!(dir3, PathBuf::from("/tmp/tray-icon"));
+    assert_eq!(dir3, std::env::temp_dir().join("tray-icon"));
 }

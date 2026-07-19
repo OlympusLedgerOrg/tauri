@@ -40,7 +40,7 @@ sudo apt install libgtk-4-dev libxdo-dev libdbus-1-dev
 Install this dependencies in order to compile `tray-icon`. Instructions using `pkg`:
 
 ```sh
-pkg install -y rust glib pkgconf gtk3
+pkg install -y rust glib pkgconf gtk4
 ```
 
 ## Examples

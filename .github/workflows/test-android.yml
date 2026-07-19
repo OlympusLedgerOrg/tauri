@@ -32,6 +32,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: install Rust 1.92
         uses: dtolnay/rust-toolchain@1.92
@@ -43,7 +45,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
 
-      - run: npm i -g --force corepack
+      - run: |
+          npm i -g --force corepack@0.34.0
+          corepack enable pnpm
       - name: setup node
         uses: actions/setup-node@v7
         with:
@@ -66,13 +70,15 @@ jobs:
       # TODO check after https://github.com/nttld/setup-ndk/issues/518 is fixed
       - name: Restore Android Symlinks
         if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'macos-latest'
+        env:
+          NDK_PATH: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
           case "$RUNNER_OS" in
             Linux) prebuilt="linux-x86_64" ;;
             macOS) prebuilt="darwin-x86_64" ;;
           esac
 
-          directory="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/${prebuilt}/bin"
+          directory="${NDK_PATH}/toolchains/llvm/prebuilt/${prebuilt}/bin"
           find "$directory" -type l | while read link; do
               current_target=$(readlink "$link")
               new_target="$directory/$(basename "$current_target")"

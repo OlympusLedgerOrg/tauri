@@ -3,4 +3,4 @@
 "@tauri-apps/cli": "patch:bug"
 ---
 
-Fix `tauri info` reports non existent npm package as not installed
+Prevent `tauri info` from reporting Rust-only plugins as having a missing npm package.

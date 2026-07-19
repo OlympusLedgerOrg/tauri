@@ -25,11 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - name: install webkit2gtk
+      - name: install WebKitGTK and GTK
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1
+          sudo apt-get install -y libwebkitgtk-6.0-dev libgtk-4-dev
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --all-targets --all-features -- -D warnings
 {{{{/raw}}}}

@@ -27,12 +27,19 @@ jobs:
       macros: ${{ steps.filter.outputs.macros }}
       runtime: ${{ steps.filter.outputs.runtime }}
       wry: ${{ steps.filter.outputs.wry }}
+      muda: ${{ steps.filter.outputs.muda }}
+      tao: ${{ steps.filter.outputs.tao }}
+      tray_icon: ${{ steps.filter.outputs.tray_icon }}
+      port_wry: ${{ steps.filter.outputs.port_wry }}
+      wayland_scanner: ${{ steps.filter.outputs.wayland_scanner }}
       utils: ${{ steps.filter.outputs.utils }}
       bundler: ${{ steps.filter.outputs.bundler }}
       cli: ${{ steps.filter.outputs.cli }}
       macossign: ${{ steps.filter.outputs.macossign }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -51,6 +58,17 @@ jobs:
             wry:
               - 'crates/tauri-runtime-wry/**'
               - 'ports/**'
+              - 'vendor/wayland-scanner/**'
+            muda:
+              - 'ports/muda/**'
+            tao:
+              - 'ports/tao/**'
+            tray_icon:
+              - 'ports/tray-icon/**'
+            port_wry:
+              - 'ports/wry/**'
+            wayland_scanner:
+              - 'vendor/wayland-scanner/**'
             utils:
               - 'crates/tauri-utils/**'
             bundler:
@@ -70,6 +88,11 @@ jobs:
       needs.changes.outputs.macros == 'true' ||
       needs.changes.outputs.runtime == 'true' ||
       needs.changes.outputs.wry == 'true' ||
+      needs.changes.outputs.muda == 'true' ||
+      needs.changes.outputs.tao == 'true' ||
+      needs.changes.outputs.tray_icon == 'true' ||
+      needs.changes.outputs.port_wry == 'true' ||
+      needs.changes.outputs.wayland_scanner == 'true' ||
       needs.changes.outputs.utils == 'true' ||
       needs.changes.outputs.bundler == 'true' ||
       needs.changes.outputs.cli == 'true' ||
@@ -77,6 +100,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly
@@ -100,6 +125,11 @@ jobs:
           MACROS: ${{ needs.changes.outputs.macros == 'true' }}
           RUNTIME: ${{ needs.changes.outputs.runtime == 'true' }}
           WRY: ${{ needs.changes.outputs.wry == 'true' }}
+          MUDA: ${{ needs.changes.outputs.muda == 'true' }}
+          TAO: ${{ needs.changes.outputs.tao == 'true' }}
+          TRAY_ICON: ${{ needs.changes.outputs.tray_icon == 'true' }}
+          PORT_WRY: ${{ needs.changes.outputs.port_wry == 'true' }}
+          WAYLAND_SCANNER: ${{ needs.changes.outputs.wayland_scanner == 'true' }}
           UTILS: ${{ needs.changes.outputs.utils == 'true' }}
           BUNDLER: ${{ needs.changes.outputs.bundler == 'true' }}
           CLI: ${{ needs.changes.outputs.cli == 'true' }}
@@ -112,6 +142,11 @@ jobs:
           if [ "${MACROS}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-macros\""; fi
           if [ "${RUNTIME}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-runtime\""; fi
           if [ "${WRY}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-runtime-wry\""; fi
+          if [ "${MUDA}" == "true" ]; then crates[${#crates[@]}]="\"./ports/muda\""; fi
+          if [ "${TAO}" == "true" ]; then crates[${#crates[@]}]="\"./ports/tao\""; fi
+          if [ "${TRAY_ICON}" == "true" ]; then crates[${#crates[@]}]="\"./ports/tray-icon\""; fi
+          if [ "${PORT_WRY}" == "true" ]; then crates[${#crates[@]}]="\"./ports/wry\""; fi
+          if [ "${WAYLAND_SCANNER}" == "true" ]; then crates[${#crates[@]}]="\"./vendor/wayland-scanner\""; fi
           if [ "${UTILS}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-utils\""; fi
           if [ "${BUNDLER}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-bundler\""; fi
           if [ "${CLI}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-cli\""; fi
@@ -128,6 +163,8 @@ jobs:
         path: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly

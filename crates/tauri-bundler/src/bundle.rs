@@ -309,11 +309,30 @@ fn bundle_size(path: &std::path::Path) -> crate::Result<u64> {
   if metadata.is_dir() {
     let mut total = 0;
     for entry in walkdir::WalkDir::new(path) {
-      total += entry?.metadata()?.len();
+      let entry = entry?;
+      if entry.file_type().is_file() || entry.path_is_symlink() {
+        total += entry.metadata()?.len();
+      }
     }
     Ok(total)
   } else {
     Ok(metadata.len())
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::bundle_size;
+
+  #[test]
+  fn bundle_size_excludes_directory_metadata() {
+    let temp = tempfile::tempdir().unwrap();
+    let nested = temp.path().join("nested");
+    std::fs::create_dir(&nested).unwrap();
+    std::fs::write(temp.path().join("one"), [0; 3]).unwrap();
+    std::fs::write(nested.join("two"), [0; 5]).unwrap();
+
+    assert_eq!(bundle_size(temp.path()).unwrap(), 8);
   }
 }
 

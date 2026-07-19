@@ -13,7 +13,13 @@ mod normal;
 pub(crate) mod plugin;
 mod predefined;
 mod submenu;
-use std::{mem::ManuallyDrop, sync::Arc};
+use std::{
+  mem::ManuallyDrop,
+  sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+  },
+};
 
 pub use builders::*;
 pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
@@ -22,6 +28,8 @@ use serde::{Deserialize, Serialize};
 use crate::menu::plugin::remove_menu_channel;
 use crate::{image::Image, AppHandle, Runtime};
 pub use muda::MenuId;
+
+static MENU_CHANNEL_OWNER: AtomicU64 = AtomicU64::new(1);
 
 macro_rules! run_item_main_thread {
   ($self:ident, $ex:expr) => {{
@@ -74,6 +82,7 @@ macro_rules! gen_wrappers {
         // This [`ManuallyDrop`] is used to [`ManuallyDrop::take`] in [`Self::drop`] to drop it on main thread
         inner: ManuallyDrop<::muda::$type>,
         app_handle: $crate::AppHandle<R>,
+        channel_owner: u64,
       }
 
       impl<R: $crate::Runtime> $inner<R> {
@@ -81,6 +90,7 @@ macro_rules! gen_wrappers {
           Self {
             inner: ManuallyDrop::new(menu),
             app_handle,
+            channel_owner: MENU_CHANNEL_OWNER.fetch_add(1, Ordering::Relaxed),
           }
         }
       }
@@ -95,7 +105,7 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
-          remove_menu_channel(&self.app_handle, self.inner.id());
+          remove_menu_channel(&self.app_handle, self.inner.id(), self.channel_owner);
           // SAFETY: we will not access `self.inner` after this
           let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
           // SAFETY: inner was created on main thread and is being dropped on main thread
@@ -118,6 +128,12 @@ macro_rules! gen_wrappers {
       impl<R: $crate::Runtime> Clone for $type<R> {
         fn clone(&self) -> Self {
           Self(self.0.clone())
+        }
+      }
+
+      impl<R: $crate::Runtime> $type<R> {
+        pub(crate) fn channel_owner(&self) -> u64 {
+          self.0.channel_owner
         }
       }
 

@@ -5,4 +5,4 @@
 ---
 
 
-Fix WiX bundler doesn't respect the resource's target file name.
+Fix the WiX bundler so it respects the resource's target file name.

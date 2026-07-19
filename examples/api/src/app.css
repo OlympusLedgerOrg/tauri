@@ -52,6 +52,7 @@ code.code-block {
 @media screen and (width < 640px) {
   #sidebar {
     --translate-x: -18.75rem;
+
     transform: translateX(var(--translate-x));
   }
 }

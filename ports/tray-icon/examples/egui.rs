@@ -30,17 +30,27 @@ fn main() -> Result<(), eframe::Error> {
         target_os = "netbsd",
         target_os = "openbsd"
     ))]
-    std::thread::spawn(|| {
+    std::thread::spawn(move || {
+        use gtk::prelude::{ApplicationExt, ApplicationExtManual};
+        use std::{cell::RefCell, rc::Rc};
         use tray_icon::menu::Menu;
 
-        gtk::init().unwrap();
-        let _tray_icon = TrayIconBuilder::new()
-            .with_menu(Box::new(Menu::new()))
-            .with_icon(icon)
-            .build()
-            .unwrap();
-
-        gtk::main();
+        let gtk_app = gtk::Application::builder()
+            .application_id("com.tauri.tray-icon.egui")
+            .build();
+        let tray_icon = Rc::new(RefCell::new(None));
+        let tray_icon_ = tray_icon.clone();
+        gtk_app.connect_activate(move |_| {
+            tray_icon_.borrow_mut().get_or_insert_with(|| {
+                TrayIconBuilder::new()
+                    .with_menu(Box::new(Menu::new()))
+                    .with_icon(icon.clone())
+                    .build()
+                    .unwrap()
+            });
+        });
+        let _hold = gtk_app.hold();
+        gtk_app.run();
     });
 
     #[cfg(not(any(

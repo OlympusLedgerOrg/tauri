@@ -13,6 +13,7 @@
   }
 
   function handleSuccess(stream: MediaStream) {
+    mediaStream = stream
     const settings = stream.getTracks().map((track) => track.getSettings())
     onMessage(`Got streams: ${JSON.stringify(settings, null, 2)}`)
     const videoTracks = stream.getVideoTracks()
@@ -20,7 +21,7 @@
     // @ts-expect-error
     window.stream = mediaStream // make variable available to browser console
     if (video) {
-      video.srcObject = stream
+      video.srcObject = mediaStream
     }
   }
 
@@ -36,7 +37,7 @@
       //   `The resolution ${v.width.exact}x${v.height.exact} px is not supported by your device.`
       // )
       onMessage(
-        `The constraints ${constraints} can not be satisified by your device.`
+        `The constraints ${JSON.stringify(constraints)} can not be satisfied by your device.`
       )
     } else if (error.name === 'PermissionDeniedError') {
       onMessage(

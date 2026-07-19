@@ -77,7 +77,11 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v7
-      - run: npm i -g --force corepack
+        with:
+          persist-credentials: false
+      - run: |
+          npm i -g --force corepack@0.34.0
+          corepack enable pnpm
       - name: Setup node
         uses: actions/setup-node@v7
         with:
@@ -149,6 +153,8 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: npm i -g --force corepack
       - name: Setup node
         uses: actions/setup-node@v7
@@ -187,6 +193,8 @@ jobs:
     runs-on: ${{ contains(matrix.target, 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: npm i -g --force corepack
       - name: Setup node
         uses: actions/setup-node@v7
@@ -268,6 +276,8 @@ jobs:
       - test-linux-binding
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: npm i -g --force corepack
       - name: Setup node
         uses: actions/setup-node@v7

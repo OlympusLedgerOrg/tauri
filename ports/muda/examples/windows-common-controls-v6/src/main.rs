@@ -229,7 +229,8 @@ fn show_context_menu(window: &Window, menu: &dyn ContextMenu, position: Option<P
         target_os = "openbsd"
     ))]
     {
-        menu.show_context_menu_for_gtk(window.gtk_window().as_ref(), position);
+        let _ = (window, menu, position);
+        // This Windows-focused example does not wire a GTK4 context-menu parent yet.
     }
 }
 

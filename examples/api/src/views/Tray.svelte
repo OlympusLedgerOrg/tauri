@@ -26,7 +26,15 @@
     onMessage(`Item ${detail.text} clicked`)
   }
 
+  function remove() {
+    menu?.close()
+    menu = undefined
+    tray?.close()
+    tray = undefined
+  }
+
   async function create() {
+    remove()
     try {
       menu = await Menu.new({
         items: menuItems.map((i) => i.menu).filter(Boolean) as MenuItems[]
@@ -41,17 +49,13 @@
         action: (event) => onMessage(event)
       })
     } catch (error) {
-      menu?.close()
-      menu = undefined
-      tray?.close()
-      tray = undefined
+      remove()
       onMessage(error)
     }
   }
 
   onDestroy(() => {
-    menu?.close()
-    tray?.close()
+    remove()
   })
 </script>
 
@@ -118,10 +122,7 @@
       {#if tray}
         <button
           class="btn"
-          onclick={() => {
-            tray?.close()
-            tray = undefined
-          }}
+          onclick={remove}
           title="Remove the tray icon">Remove tray</button
         >
       {:else}

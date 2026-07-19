@@ -30,7 +30,7 @@ use tao::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
 use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
-    window::{Window, WindowBuilder},
+    window::{Window, WindowBuilder, WindowId},
 };
 #[cfg(any(
     target_os = "linux",
@@ -44,6 +44,10 @@ use wry::{http::Request, WebViewBuilder};
 
 enum UserEvent {
     MenuEvent(muda::MenuEvent),
+    ShowContextMenu {
+        window_id: WindowId,
+        position: Option<Position>,
+    },
 }
 
 fn main() -> wry::Result<()> {
@@ -270,45 +274,36 @@ fn main() -> wry::Result<()> {
     let window = Rc::new(window);
     let window2 = Rc::new(window2);
 
+    let ipc_proxy = event_loop.create_proxy();
     let create_ipc_handler = |window: &Rc<Window>| {
-        let window = window.clone();
-        let file_m_c = file_m.clone();
-        let menu_bar = menu_bar.clone();
+        let window_id = window.id();
+        let proxy = ipc_proxy.clone();
         move |req: Request<String>| {
             let req = req.body();
-            if req == "showContextMenu" {
-                show_context_menu(&window, &file_m_c, None)
+            let position = if req == "showContextMenu" {
+                None
             } else if let Some(rest) = req.strip_prefix("showContextMenuPos:") {
-                let (x, mut y) = rest
+                let (x, y) = rest
                     .split_once(',')
                     .map(|(x, y)| (x.parse::<i32>().unwrap(), y.parse::<i32>().unwrap()))
                     .unwrap();
+                Some(Position::Logical((x, y).into()))
+            } else {
+                return;
+            };
 
-                #[cfg(any(
-                    target_os = "linux",
-                    target_os = "dragonfly",
-                    target_os = "freebsd",
-                    target_os = "netbsd",
-                    target_os = "openbsd"
-                ))]
-                {
-                    // Pending a tao release on gtk4; muda's gtk API now takes gtk4 types.
-                    // if let Some(menu_bar) = menu_bar
-                    //     .clone()
-                    //     .gtk_menubar_for_gtk_window(window.gtk_window())
-                    // {
-                    //     use gtk::prelude::*;
-                    //     y += menu_bar.allocated_height();
-                    // }
-                    let _ = &mut y;
-                }
-
-                show_context_menu(&window, &file_m_c, Some(Position::Logical((x, y).into())))
-            }
+            let _ = proxy.send_event(UserEvent::ShowContextMenu {
+                window_id,
+                position,
+            });
         }
     };
 
-    fn create_webview(window: &Rc<Window>) -> WebViewBuilder<'_> {
+    fn create_webview() -> WebViewBuilder<'static> {
+        WebViewBuilder::new()
+    }
+
+    fn build_webview(builder: WebViewBuilder<'_>, window: &Window) -> wry::Result<wry::WebView> {
         #[cfg(not(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -316,7 +311,8 @@ fn main() -> wry::Result<()> {
             target_os = "netbsd",
             target_os = "openbsd"
         )))]
-        return WebViewBuilder::new(window);
+        return builder.build(window);
+
         #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -324,17 +320,23 @@ fn main() -> wry::Result<()> {
             target_os = "netbsd",
             target_os = "openbsd"
         ))]
-        WebViewBuilder::new_gtk(window.default_vbox().unwrap())
-    };
+        {
+            builder.build_gtk(window.default_vbox().unwrap())
+        }
+    }
 
-    let webview = create_webview(&window)
-        .with_html(&html)
-        .with_ipc_handler(create_ipc_handler(&window))
-        .build()?;
-    let webview2 = create_webview(&window2)
-        .with_html(html)
-        .with_ipc_handler(create_ipc_handler(&window2))
-        .build()?;
+    let webview = build_webview(
+        create_webview()
+            .with_html(&html)
+            .with_ipc_handler(create_ipc_handler(&window)),
+        &window,
+    )?;
+    let webview2 = build_webview(
+        create_webview()
+            .with_html(html)
+            .with_ipc_handler(create_ipc_handler(&window2)),
+        &window2,
+    )?;
 
     let menu_channel = MenuEvent::receiver();
 
@@ -352,6 +354,16 @@ fn main() -> wry::Result<()> {
                     file_m.insert(&MenuItem::new("New Menu Item", true, None), 2);
                 }
                 println!("{event:?}");
+            }
+            Event::UserEvent(UserEvent::ShowContextMenu {
+                window_id,
+                position,
+            }) => {
+                if window_id == window.id() {
+                    show_context_menu(&window, &file_m, position);
+                } else if window_id == window2.id() {
+                    show_context_menu(&window2, &file_m, position);
+                }
             }
             _ => {}
         }

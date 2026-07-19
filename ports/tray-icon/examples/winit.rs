@@ -132,11 +132,21 @@ fn main() {
         target_os = "openbsd"
     ))]
     std::thread::spawn(|| {
-        gtk::init().unwrap();
+        use gtk::prelude::{ApplicationExt, ApplicationExtManual};
+        use std::{cell::RefCell, rc::Rc};
 
-        let _tray_icon = Application::new_tray_icon();
-
-        gtk::main();
+        let gtk_app = gtk::Application::builder()
+            .application_id("com.tauri.tray-icon.winit")
+            .build();
+        let tray_icon = Rc::new(RefCell::new(None));
+        let tray_icon_ = tray_icon.clone();
+        gtk_app.connect_activate(move |_| {
+            tray_icon_
+                .borrow_mut()
+                .get_or_insert_with(Application::new_tray_icon);
+        });
+        let _hold = gtk_app.hold();
+        gtk_app.run();
     });
 
     if let Err(err) = event_loop.run_app(&mut app) {

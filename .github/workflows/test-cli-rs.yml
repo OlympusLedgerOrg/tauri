@@ -15,6 +15,7 @@ on:
       - 'crates/tauri-bundler/**'
       - 'crates/tauri-cli/**'
       - 'ports/**'
+      - 'vendor/wayland-scanner/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
 
@@ -45,6 +46,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: 'Setup Rust'
         uses: dtolnay/rust-toolchain@1.92
