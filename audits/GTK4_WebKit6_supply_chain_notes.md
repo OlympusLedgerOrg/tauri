@@ -27,15 +27,15 @@ The Linux all-features graph contains the expected GTK4/WebKitGTK 6 crates:
 | `arc-swap` | `1.9.2` | `https://github.com/vorner/arc-swap` | Used by Linux menu/tray support. |
 | `async-channel` | `2.5.0` | `https://github.com/smol-rs/async-channel` | Transitive async utility. |
 
-The Wayland backend, client, protocols, scanner, and sys crates are pinned as a
-single coherent Smithay snapshot at
-`d07c4f91f28b42e5a485823ffd9d8d5a210b1053`. The crates.io
-`wayland-scanner 0.31.10` release requires vulnerable `quick-xml 0.39`, while
-that upstream commit moves the scanner to `quick-xml 0.41` to resolve
-`RUSTSEC-2026-0194` and `RUSTSEC-2026-0195`. Pinning only the scanner would mix
-its unreleased code generation with released Wayland runtime crates and fails
-to compile on Linux. Remove the matched set after Smithay publishes compatible
-crates.io releases containing the fix.
+`wayland-scanner 0.31.10` is vendored from its crates.io release under
+`vendor/wayland-scanner`. It carries Smithay's one-line `xml10_content` parser
+adapter from `ec2d9328` and the upstream `quick-xml 0.41` bump from `d07c4f91`,
+resolving `RUSTSEC-2026-0194` and `RUSTSEC-2026-0195`. The other Wayland crates
+remain on their compatible crates.io releases. Using Smithay's full unreleased
+snapshot would also pull intentional code-generation and public-API changes,
+breaking released consumers such as `wayland-cursor` and Smithay Client Toolkit.
+Remove the vendor patch after Smithay publishes a compatible scanner release
+containing the security bump.
 
 `ksni` is intentionally pulled through `tauri -> tray-icon/linux-ksni`.
 Removing it means deliberately dropping or replacing that StatusNotifier tray
@@ -70,11 +70,12 @@ Their actual locations are standalone vendored-port examples:
 | `glow` | `ports/wry/Cargo.toml` dev-dependency | `ports/wry/examples/gtk_opengl.rs` |
 | `eframe` | `ports/tray-icon/Cargo.toml` dev-dependency | `ports/tray-icon/examples/egui.rs` |
 
-The standalone Muda, Tao, Tray Icon, and Wry manifests pin the same matched
-Wayland revision set. Tray Icon's `eframe` example disables the default
-AccessKit feature, removing the obsolete `zbus_xml -> quick-xml 0.30` path,
-and Tao's lockfile updates `crossbeam-epoch` to `0.9.20`. Wry no longer ignores
-the two `quick-xml` advisories in its audit configuration.
+The standalone Muda, Tao, Tray Icon, and Wry repositories carry the same
+API-compatible scanner vendor patch and tracked lockfile metadata. Tray Icon's
+`eframe` example disables the default AccessKit feature, removing the obsolete
+`zbus_xml -> quick-xml 0.30` path, and Tao's lockfile updates
+`crossbeam-epoch` to `0.9.20`. Wry no longer ignores the two `quick-xml`
+advisories in its audit configuration.
 
 The root workspace explicitly excludes `ports/muda`, `ports/tao`,
 `ports/tray-icon`, and `ports/wry`, while patching crates.io to those local

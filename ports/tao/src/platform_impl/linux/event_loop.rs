@@ -132,15 +132,14 @@ impl<T> EventLoopWindowTarget<T> {
 
       Ok(
         rwh_06::WaylandDisplayHandle::new({
-          display
+          let ptr = display
             .downcast::<gdk4_wayland::WaylandDisplay>()
             .unwrap()
             .wl_display()
             .unwrap()
             .id()
-            .as_ptr()
-            .expect("wl_display will never be null")
-            .cast()
+            .as_ptr();
+          std::ptr::NonNull::new(ptr as *mut _).expect("wl_display will never be null")
         })
         .into(),
       )
