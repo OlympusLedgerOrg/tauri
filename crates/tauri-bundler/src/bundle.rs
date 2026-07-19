@@ -320,22 +320,6 @@ fn bundle_size(path: &std::path::Path) -> crate::Result<u64> {
   }
 }
 
-#[cfg(test)]
-mod tests {
-  use super::bundle_size;
-
-  #[test]
-  fn bundle_size_excludes_directory_metadata() {
-    let temp = tempfile::tempdir().unwrap();
-    let nested = temp.path().join("nested");
-    std::fs::create_dir(&nested).unwrap();
-    std::fs::write(temp.path().join("one"), [0; 3]).unwrap();
-    std::fs::write(nested.join("two"), [0; 5]).unwrap();
-
-    assert_eq!(bundle_size(temp.path()).unwrap(), 8);
-  }
-}
-
 fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> crate::Result<()> {
   if matches!(target_os, TargetPlatform::Windows) {
     if settings.windows().can_sign() {
@@ -391,5 +375,21 @@ pub fn check_icons(settings: &Settings) -> crate::Result<bool> {
     Ok(false)
   } else {
     Ok(true)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::bundle_size;
+
+  #[test]
+  fn bundle_size_excludes_directory_metadata() {
+    let temp = tempfile::tempdir().unwrap();
+    let nested = temp.path().join("nested");
+    std::fs::create_dir(&nested).unwrap();
+    std::fs::write(temp.path().join("one"), [0; 3]).unwrap();
+    std::fs::write(nested.join("two"), [0; 5]).unwrap();
+
+    assert_eq!(bundle_size(temp.path()).unwrap(), 8);
   }
 }
