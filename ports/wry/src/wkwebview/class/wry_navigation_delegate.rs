@@ -115,9 +115,9 @@ impl WryNavigationDelegate {
     webview: Retained<WryWebView>,
     pending_scripts: Arc<Mutex<Option<Vec<String>>>>,
     has_download_handler: bool,
-    navigation_handler: Option<Box<dyn Fn(String) -> bool>>,
+    navigation_handler: Option<Box<dyn Fn(String) -> bool + Send + Sync>>,
     download_delegate: Option<Retained<WryDownloadDelegate>>,
-    on_page_load_handler: Option<Box<dyn Fn(PageLoadEvent, String)>>,
+    on_page_load_handler: Option<Box<dyn Fn(PageLoadEvent, String) + Send + Sync>>,
     on_web_content_process_terminate_handler: Option<Box<dyn Fn()>>,
     mtm: MainThreadMarker,
   ) -> Retained<Self> {

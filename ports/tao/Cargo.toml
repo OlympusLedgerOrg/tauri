@@ -175,3 +175,6 @@ parking_lot = "0.12"
 dlopen2 = "0.8.0"
 dbus = { version = "0.9", optional = true }
 libadwaita = { version = "0.9", optional = true }
+
+[patch.crates-io]
+wayland-scanner = { path = "../../vendor/wayland-scanner" }

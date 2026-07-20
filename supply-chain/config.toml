@@ -28,10 +28,22 @@ audit-as-crates-io = true
 [policy.tauri-build]
 audit-as-crates-io = true
 
+[policy.tauri-bundler]
+audit-as-crates-io = true
+
 [policy.tauri-codegen]
 audit-as-crates-io = true
 
+[policy.tauri-cli]
+audit-as-crates-io = true
+
+[policy.tauri-driver]
+audit-as-crates-io = true
+
 [policy.tauri-macros]
+audit-as-crates-io = true
+
+[policy.tauri-macos-sign]
 audit-as-crates-io = true
 
 [policy.tauri-plugin]
@@ -44,6 +56,21 @@ audit-as-crates-io = true
 audit-as-crates-io = true
 
 [policy.tauri-utils]
+audit-as-crates-io = true
+
+[policy.muda]
+audit-as-crates-io = true
+
+[policy.tao]
+audit-as-crates-io = true
+
+[policy.tao-macros]
+audit-as-crates-io = true
+
+[policy.tray-icon]
+audit-as-crates-io = true
+
+[policy.wry]
 audit-as-crates-io = true
 
 [[exemptions.addr2line]]

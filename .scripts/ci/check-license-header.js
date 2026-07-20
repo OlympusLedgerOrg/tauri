@@ -22,14 +22,16 @@ const ignore = [
   'templates',
   'node_modules',
   'gen',
+  'vendor',
   'dist',
   'bundle.global.js'
 ]
 
 async function checkFile(file) {
+  const pathParts = path.normalize(file).split(path.sep)
   if (
     extensions.some((e) => file.endsWith(e))
-    && !ignore.some((i) => file.includes(`/${i}/`) || path.basename(file) === i)
+    && !ignore.some((i) => pathParts.includes(i))
   ) {
     const fileStream = fs.createReadStream(file)
     const rl = readline.createInterface({

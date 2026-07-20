@@ -31,13 +31,13 @@ type UriSchemeProtocolHandler = dyn Fn(&str, http::Request<Vec<u8>>, Box<dyn FnO
 type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 
-type NavigationHandler = dyn Fn(&Url) -> bool + Send;
+type NavigationHandler = dyn Fn(&Url) -> bool + Send + Sync;
 
 type NewWindowHandler = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse + Send;
 
-type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
+type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send + Sync;
 
-type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
+type DocumentTitleChangedHandler = dyn Fn(String) + Send + Sync + 'static;
 
 type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
@@ -101,7 +101,7 @@ pub struct NewWindowOpener {
     target_os = "netbsd",
     target_os = "openbsd",
   ))]
-  pub webview: webkit2gtk::WebView,
+  pub webview: webkit::WebView,
   /// The instance of the webview that initiated the new window request.
   ///
   /// The target webview environment **MUST** match the environment of the opener webview. See [`WebviewAttributes::with_environment`].
@@ -402,6 +402,8 @@ pub struct WebviewAttributes {
   /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
   #[cfg(target_os = "ios")]
   pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
+  #[cfg(target_os = "ios")]
+  pub limit_navigations_to_app_bound_domains: bool,
 
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].
@@ -417,7 +419,7 @@ pub struct WebviewAttributes {
     target_os = "netbsd",
     target_os = "openbsd",
   ))]
-  pub related_view: Option<webkit2gtk::WebView>,
+  pub related_view: Option<webkit::WebView>,
 
   #[cfg(target_os = "macos")]
   pub webview_configuration: Option<objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>>,
@@ -460,6 +462,7 @@ impl From<&WindowConfig> for WebviewAttributes {
         ConfigScrollBarStyle::FluentOverlay => ScrollBarStyle::FluentOverlay,
         _ => ScrollBarStyle::Default,
       })
+      .limit_navigations_to_app_bound_domains(config.limit_navigations_to_app_bound_domains)
       .general_autofill_enabled(config.general_autofill_enabled);
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
@@ -538,6 +541,8 @@ impl WebviewAttributes {
       general_autofill_enabled: true,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
+      #[cfg(target_os = "ios")]
+      limit_navigations_to_app_bound_domains: false,
       #[cfg(windows)]
       environment: None,
       #[cfg(any(
@@ -619,7 +624,9 @@ impl WebviewAttributes {
     self
   }
 
-  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
+  /// Disables the drag and drop handler used internally to generate [`DragDropEvent`](crate::window::DragDropEvent)s.
+  ///
+  /// This is required to use HTML5 drag and drop APIs on the frontend on Windows since we replace the drag drop handler of WebView2.
   #[must_use]
   pub fn disable_drag_drop_handler(mut self) -> Self {
     self.drag_drop_handler_enabled = false;
@@ -789,6 +796,65 @@ impl WebviewAttributes {
     self
   }
 
+  /// Whether to limit navigations to App-Bound Domains. This is necessary to
+  /// enable Service Workers on iOS according to
+  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  ///
+  /// Default is false.
+  ///
+  /// Note: If you pass in `true` make sure to add localhost and any [`registrable
+  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// used in this webview to tauri-src/Info.ios.plist:
+  ///
+  /// ```xml
+  /// <plist>
+  /// <dict>
+  ///     <key>WKAppBoundDomains</key>
+  ///     <array>
+  ///         <string>localhost</string>
+  ///         <string>aregistrabledomain.example</string>
+  ///     </array>
+  /// </dict>
+  /// </plist>
+  /// ```
+  ///
+  /// You must add `localhost` if any webview with this set to true opens a
+  /// local webpage, makes any localhost calls, or uses the isolation pattern
+  /// because Tauri uses the `localhost` domain for hosting the application
+  /// webpage, the IPC protocol, and the isolation pattern's iframe.
+  ///
+  /// Requests served through custom uri schemes are allowed so long as they use
+  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
+  /// requests from the app, including requests for the `localhost` domain.
+  ///
+  /// In theory, you can whitelist an entire uri scheme by including the
+  /// protocol name followed by a colon. For example, to allow all requests
+  /// using a custom "stream" uri scheme (see [this tauri
+  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
+  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
+  /// sure whether Apple would let your app through app review if you do
+  /// whitelist an entire protocol because this feature is not mentioned in
+  /// [their blog post on App-Bound
+  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
+  ///
+  /// See https://webkit.org/blog/10882/app-bound-domains/ and
+  /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// for the official documentation on App-Bound Domains.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS**: Supported since version 14.0+.
+  /// - **Linux / Windows / Android / MacOS:** Unsupported.
+  #[must_use]
+  #[allow(unused_variables, unused_mut)]
+  pub fn limit_navigations_to_app_bound_domains(mut self, limit_navigations: bool) -> Self {
+    #[cfg(target_os = "ios")]
+    {
+      self.limit_navigations_to_app_bound_domains = limit_navigations;
+    }
+    self
+  }
+
   /// Change the default background throttling behavior.
   ///
   /// By default, browsers use a suspend policy that will throttle timers and even unload
@@ -853,7 +919,8 @@ impl WebviewAttributes {
 }
 
 /// IPC handler.
-pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send>;
+pub type WebviewIpcHandler<T, R> =
+  Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send + Sync>;
 
 /// An initialization script
 #[derive(Debug, Clone)]

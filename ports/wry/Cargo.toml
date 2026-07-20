@@ -56,6 +56,9 @@ soup3 = { version = "0.9", optional = true }
 percent-encoding = "2.3"
 dirs = "6"
 
+[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dev-dependencies]
+x11-dl = "2.21"
+
 [target."cfg(target_os = \"windows\")".dependencies]
 webview2-com = "0.38"
 windows-version = "0.1"
@@ -189,11 +192,12 @@ base64 = "0.22"
 jni = "0.21"
 ndk = "0.9"
 tao-macros = "0.1"
+tao = { path = "../tao" }
 libc = "0.2"
 dom_query = { version = "0.28.0", default-features = false }
 
 [dev-dependencies]
-pollster = "0.4.0"
+pollster = "1.0.0"
 tao = { path = "../tao" }
 wgpu = "23"
 winit = "0.30"
@@ -210,3 +214,6 @@ dom_query = { version = "0.28.0", default-features = false }
 [lints.rust.unexpected_cfgs]
 level = "warn"
 check-cfg = ["cfg(linux)", "cfg(gtk)"]
+
+[patch.crates-io]
+wayland-scanner = { path = "../../vendor/wayland-scanner" }

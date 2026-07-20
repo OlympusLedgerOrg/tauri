@@ -9,6 +9,9 @@
 #[allow(dead_code)]
 fn needs_send<T: Send>() {}
 
+#[allow(dead_code)]
+fn needs_sync<T: Sync>() {}
+
 #[test]
 fn event_loop_proxy_send() {
   #[allow(dead_code)]
@@ -21,8 +24,9 @@ fn event_loop_proxy_send() {
 
 #[test]
 fn window_send() {
-  // ensures that `Window` implements `Send`
+  // ensures that `Window` implements `Send` and `Sync`
   needs_send::<tao::window::Window>();
+  needs_sync::<tao::window::Window>();
 }
 
 #[test]

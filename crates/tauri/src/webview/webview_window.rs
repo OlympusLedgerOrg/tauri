@@ -263,7 +263,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  pub fn on_navigation<F: Fn(&Url) -> bool + Send + Sync + 'static>(mut self, f: F) -> Self {
     self.webview_builder = self.webview_builder.on_navigation(f);
     self
   }
@@ -323,7 +323,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// Defines a closure to be executed when the document title changes.
   ///
   /// Note that it may run before or after the navigation event.
-  pub fn on_document_title_changed<F: Fn(WebviewWindow<R>, String) + Send + 'static>(
+  pub fn on_document_title_changed<F: Fn(WebviewWindow<R>, String) + Send + Sync + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -717,12 +717,14 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   #[must_use]
-  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
+  pub fn transient_for_raw(mut self, parent: &impl gtk::glib::object::IsA<gtk::Window>) -> Self {
     self.window_builder = self.window_builder.transient_for_raw(parent);
     self
   }
 
-  /// Enables or disables drag and drop support.
+  /// Enables or disables drag and drop support of this window.
+  ///
+  /// Note: this is a different config from [`Self::disable_drag_drop_handler`]
   #[cfg(windows)]
   #[must_use]
   pub fn drag_and_drop(mut self, enabled: bool) -> Self {
@@ -1036,7 +1038,9 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
-  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
+  /// Disables the webview drag and drop handler used internally to generate [`DragDropEvent`](crate::DragDropEvent)s.
+  ///
+  /// This is required to use HTML5 drag and drop APIs on the frontend on Windows since we replace the drag drop handler of WebView2.
   #[must_use]
   pub fn disable_drag_drop_handler(mut self) -> Self {
     self.webview_builder = self.webview_builder.disable_drag_drop_handler();
@@ -1318,6 +1322,62 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
+  /// Whether to limit navigations to App-Bound Domains. This is necessary to
+  /// enable Service Workers on iOS according to
+  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  ///
+  /// Default is false.
+  ///
+  /// Note: If you pass in `true` make sure to add localhost and any [`registrable
+  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// used in this webview to tauri-src/Info.ios.plist:
+  ///
+  /// ```xml
+  /// <plist>
+  /// <dict>
+  ///     <key>WKAppBoundDomains</key>
+  ///     <array>
+  ///         <string>localhost</string>
+  ///         <string>aregistrabledomain.example</string>
+  ///     </array>
+  /// </dict>
+  /// </plist>
+  /// ```
+  ///
+  /// You must add `localhost` if any webview with this set to true opens a
+  /// local webpage, makes any localhost calls, or uses the isolation pattern
+  /// because Tauri uses the `localhost` domain for hosting the application
+  /// webpage, the IPC protocol, and the isolation pattern's iframe.
+  ///
+  /// Requests served through custom uri schemes are allowed so long as they use
+  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
+  /// requests from the app, including requests for the `localhost` domain.
+  ///
+  /// In theory, you can whitelist an entire uri scheme by including the
+  /// protocol name followed by a colon. For example, to allow all requests
+  /// using a custom "stream" uri scheme (see [this tauri
+  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
+  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
+  /// sure whether Apple would let your app through app review if you do
+  /// whitelist an entire protocol because this feature is not mentioned in
+  /// [their blog post on App-Bound
+  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
+  ///
+  /// See https://webkit.org/blog/10882/app-bound-domains/ and
+  /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// for the official documentation on App-Bound Domains.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS**: Supported since version 14.0+.
+  /// - **Linux / Windows / Android / MacOS:** Unsupported.
+  pub fn limit_navigations_to_app_bound_domains(mut self, limit_navigations: bool) -> Self {
+    self.webview_builder = self
+      .webview_builder
+      .limit_navigations_to_app_bound_domains(limit_navigations);
+    self
+  }
+
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`Self::on_new_window`].
   #[cfg(all(feature = "wry", windows))]
@@ -1341,7 +1401,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
       target_os = "openbsd",
     )
   ))]
-  pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
+  pub fn with_related_view(mut self, related_view: webkit::WebView) -> Self {
     self.webview_builder = self.webview_builder.with_related_view(related_view);
     self
   }
@@ -2325,7 +2385,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// The closure is executed on the main thread.
   ///
-  /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
+  /// Note that `webview2-com`, `webkit`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
   /// Therefore it's recommended to pin Tauri to at least a minor version when you're using `with_webview`.
   ///
   /// # Examples
@@ -2340,9 +2400,9 @@ impl<R: Runtime> WebviewWindow<R> {
   ///       main_webview.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
-  ///           // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
-  ///           use webkit2gtk::WebViewExt;
+  ///           // see <https://docs.rs/webkit6/latest/webkit6/struct.WebView.html>
+  ///           // and <https://docs.rs/webkit6/latest/webkit6/prelude/trait.WebViewExt.html>
+  ///           use webkit::prelude::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///

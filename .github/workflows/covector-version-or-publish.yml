@@ -19,14 +19,16 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - run: npm i -g --force corepack
-      - uses: actions/setup-node@v4
+      - run: |
+          npm i -g --force corepack@0.34.0
+          corepack enable pnpm
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
           cache: 'pnpm'
 
       - name: install stable
@@ -35,8 +37,9 @@ jobs:
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2 librsvg2-dev
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev libfuse2 librsvg2-dev
 
       - uses: Swatinem/rust-cache@v2
 
@@ -70,11 +73,14 @@ jobs:
       - run-integration-tests
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - run: npm i -g --force corepack
-      - uses: actions/setup-node@v6
+          persist-credentials: false
+      - run: |
+          npm i -g --force corepack@0.34.0
+          corepack enable pnpm
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -87,8 +93,9 @@ jobs:
 
       - name: install Linux dependencies
         run: |
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev librsvg2-dev
 
       - name: covector version or publish (publish when no change files present)
         uses: jbolda/covector/packages/action@covector-v0
@@ -108,7 +115,7 @@ jobs:
 
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
-        uses: peter-evans/create-pull-request@67ccf781d68cd99b580ae25a5c18a1cc84ffff1f # 7.0.6
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates

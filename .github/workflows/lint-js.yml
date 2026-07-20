@@ -18,9 +18,13 @@ jobs:
   eslint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: npm i -g --force corepack
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: |
+          npm i -g --force corepack@0.34.0
+          corepack enable pnpm
+      - uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
           cache: 'pnpm'
@@ -30,9 +34,13 @@ jobs:
   typescript:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: npm i -g --force corepack
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: |
+          npm i -g --force corepack@0.34.0
+          corepack enable pnpm
+      - uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
           cache: 'pnpm'

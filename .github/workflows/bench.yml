@@ -50,12 +50,13 @@ jobs:
           components: rust-src
           targets: ${{ matrix.platform.target }}
 
-      - name: install webkit2gtk and xvfb (ubuntu only)
+      - name: install WebKitGTK and xvfb (ubuntu only)
         if: contains(matrix.platform.target, 'gnu')
         run: |
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            webkit2gtk-4.1 libayatana-appindicator3-dev \
+            libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev \
             xvfb \
             at-spi2-core
 
@@ -86,11 +87,13 @@ jobs:
           cargo +nightly build --release -Z build-std=std,panic_abort -Z build-std-features= --target ${{ matrix.platform.target }} --manifest-path bench/tests/helloworld/src-tauri/Cargo.toml
 
       - name: run benchmarks
+        env:
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: ${{ contains(matrix.platform.target, 'gnu') && '1' || '' }}
         run: ${{ matrix.platform.runner }}cargo run --manifest-path ./bench/Cargo.toml --bin run_benchmark
 
       - name: clone benchmarks_results
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           path: gh-pages

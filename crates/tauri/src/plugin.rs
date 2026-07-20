@@ -24,7 +24,7 @@ use url::Url;
 
 use std::{
   borrow::Cow,
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   fmt::{self, Debug},
   sync::Arc,
 };
@@ -104,6 +104,7 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
 
+  // TODO: Change this to `run_invoke_handler` in v3
   /// Extend commands to [`crate::Builder::invoke_handler`].
   #[allow(unused_variables)]
   fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
@@ -596,7 +597,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
-  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
+  /// and `webkit_web_context_register_uri_scheme` on Linux.
   ///
   /// # Known limitations
   ///
@@ -856,6 +857,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
 #[default_runtime(crate::Wry, wry)]
 pub(crate) struct PluginStore<R: Runtime> {
   store: Vec<Box<dyn Plugin<R>>>,
+  initialized: HashSet<&'static str>,
 }
 
 impl<R: Runtime> fmt::Debug for PluginStore<R> {
@@ -869,7 +871,10 @@ impl<R: Runtime> fmt::Debug for PluginStore<R> {
 
 impl<R: Runtime> Default for PluginStore<R> {
   fn default() -> Self {
-    Self { store: Vec::new() }
+    Self {
+      store: Vec::new(),
+      initialized: HashSet::new(),
+    }
   }
 }
 
@@ -878,18 +883,32 @@ impl<R: Runtime> PluginStore<R> {
   ///
   /// Returns `true` if a plugin with the same name is already in the store.
   pub fn register(&mut self, plugin: Box<dyn Plugin<R>>) -> bool {
+    let name = plugin.name();
     let len = self.store.len();
-    self.store.retain(|p| p.name() != plugin.name());
+    self.store.retain(|p| p.name() != name);
     let result = len != self.store.len();
+    self.initialized.remove(name);
     self.store.push(plugin);
     result
+  }
+
+  /// Adds an already initialized plugin to the store.
+  pub(crate) fn register_initialized(&mut self, plugin: Box<dyn Plugin<R>>) -> bool {
+    let name = plugin.name();
+    let replaced = self.register(plugin);
+    self.initialized.insert(name);
+    replaced
   }
 
   /// Removes the plugin with the given name from the store.
   pub fn unregister(&mut self, plugin: &str) -> bool {
     let len = self.store.len();
     self.store.retain(|p| p.name() != plugin);
-    len != self.store.len()
+    let removed = len != self.store.len();
+    if removed {
+      self.initialized.remove(plugin);
+    }
+    removed
   }
 
   /// Initializes the given plugin.
@@ -908,10 +927,15 @@ impl<R: Runtime> PluginStore<R> {
     app: &AppHandle<R>,
     config: &PluginConfig,
   ) -> crate::Result<()> {
-    self
-      .store
-      .iter_mut()
-      .try_for_each(|plugin| initialize(plugin, app, config))
+    for plugin in &mut self.store {
+      let name = plugin.name();
+      if self.initialized.contains(name) {
+        continue;
+      }
+      initialize(plugin, app, config)?;
+      self.initialized.insert(name);
+    }
+    Ok(())
   }
 
   /// Generates an initialization script from all plugins in the store.
@@ -979,10 +1003,10 @@ impl<R: Runtime> PluginStore<R> {
       .for_each(|plugin| plugin.on_event(app, event))
   }
 
-  /// Runs the plugin `extend_api` hook if it exists. Returns whether the invoke message was handled or not.
+  /// Runs the plugin [`Plugin::extend_api`] hook if it exists. Returns whether the invoke message was handled or not.
   ///
   /// The message is not handled when the plugin exists **and** the command does not.
-  pub(crate) fn extend_api(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
+  pub(crate) fn run_invoke_handler(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
     for p in self.store.iter_mut() {
       if p.name() == plugin {
         #[cfg(feature = "tracing")]
@@ -1007,6 +1031,51 @@ fn initialize<R: Runtime>(
       config.0.get(plugin.name()).cloned().unwrap_or_default(),
     )
     .map_err(|e| Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+  };
+
+  struct CountingPlugin(Arc<AtomicUsize>);
+
+  impl Plugin<crate::test::MockRuntime> for CountingPlugin {
+    fn name(&self) -> &'static str {
+      "counting"
+    }
+
+    fn initialize(
+      &mut self,
+      _app: &AppHandle<crate::test::MockRuntime>,
+      _config: JsonValue,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+      self.0.fetch_add(1, Ordering::SeqCst);
+      Ok(())
+    }
+  }
+
+  #[test]
+  fn initialize_all_skips_plugins_already_initialized_at_registration() {
+    let app = crate::test::mock_app();
+    let count = Arc::new(AtomicUsize::new(0));
+    let mut plugin: Box<dyn Plugin<crate::test::MockRuntime>> =
+      Box::new(CountingPlugin(count.clone()));
+    let mut store = PluginStore::default();
+
+    store
+      .initialize(&mut plugin, app.handle(), &app.config().plugins)
+      .unwrap();
+    store.register_initialized(plugin);
+    store
+      .initialize_all(app.handle(), &app.config().plugins)
+      .unwrap();
+
+    assert_eq!(count.load(Ordering::SeqCst), 1);
+  }
 }
 
 /// Permission state.

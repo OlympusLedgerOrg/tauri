@@ -57,12 +57,12 @@ use std::{
 
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
-pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
+pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send + Sync;
 pub(crate) type NewWindowHandler<R> = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&str, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
-pub(crate) type OnDocumentTitleChanged<R> = dyn Fn(Webview<R>, String) + Send + 'static;
+pub(crate) type OnDocumentTitleChanged<R> = dyn Fn(Webview<R>, String) + Send + Sync + 'static;
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
 
 #[derive(Clone, Serialize)]
@@ -152,7 +152,7 @@ pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
 #[cfg(feature = "wry")]
 impl PlatformWebview {
-  /// Returns [`webkit2gtk::WebView`] handle.
+  /// Returns [`webkit::WebView`] handle.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -170,7 +170,7 @@ impl PlatformWebview {
       target_os = "openbsd"
     )))
   )]
-  pub fn inner(&self) -> webkit2gtk::WebView {
+  pub fn inner(&self) -> webkit::WebView {
     self.0.clone()
   }
 
@@ -525,7 +525,7 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  pub fn on_navigation<F: Fn(&Url) -> bool + Send + Sync + 'static>(mut self, f: F) -> Self {
     self.navigation_handler.replace(Box::new(f));
     self
   }
@@ -591,7 +591,7 @@ tauri::Builder::default()
   }
 
   /// Defines a closure to be executed when document title change.
-  pub fn on_document_title_changed<F: Fn(Webview<R>, String) + Send + 'static>(
+  pub fn on_document_title_changed<F: Fn(Webview<R>, String) + Send + Sync + 'static>(
     mut self,
     f: F,
   ) -> Self {
@@ -968,7 +968,9 @@ fn main() {
     self
   }
 
-  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
+  /// Disables the drag and drop handler used internally to generate [`DragDropEvent`](crate::DragDropEvent)s.
+  ///
+  /// This is required to use HTML5 drag and drop APIs on the frontend on Windows since we replace the drag drop handler of WebView2.
   #[must_use]
   pub fn disable_drag_drop_handler(mut self) -> Self {
     self.webview_attributes.drag_drop_handler_enabled = false;
@@ -1219,6 +1221,62 @@ fn main() {
       .allow_link_preview(allow_link_preview);
     self
   }
+  /// Whether to limit navigations to App-Bound Domains. This is necessary to
+  /// enable Service Workers on iOS according to
+  /// [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  ///
+  /// Default is false.
+  ///
+  /// Note: If you pass in `true` make sure to add localhost and any [`registrable
+  /// domains`](https://developer.mozilla.org/en-US/docs/Glossary/Registrable_domain)
+  /// used in this webview to tauri-src/Info.ios.plist:
+  ///
+  /// ```xml
+  /// <plist>
+  /// <dict>
+  ///     <key>WKAppBoundDomains</key>
+  ///     <array>
+  ///         <string>localhost</string>
+  ///         <string>aregistrabledomain.example</string>
+  ///     </array>
+  /// </dict>
+  /// </plist>
+  /// ```
+  ///
+  /// You must add `localhost` if any webview with this set to true opens a
+  /// local webpage, makes any localhost calls, or uses the isolation pattern
+  /// because Tauri uses the `localhost` domain for hosting the application
+  /// webpage, the IPC protocol, and the isolation pattern's iframe.
+  ///
+  /// Requests served through custom uri schemes are allowed so long as they use
+  /// a registrable domain specified in the `WKAppBoundDomains` array for all the
+  /// requests from the app, including requests for the `localhost` domain.
+  ///
+  /// In theory, you can whitelist an entire uri scheme by including the
+  /// protocol name followed by a colon. For example, to allow all requests
+  /// using a custom "stream" uri scheme (see [this tauri
+  /// example](https://github.com/tauri-apps/tauri/blob/dev/examples/streaming/main.rs)),
+  /// you could add `stream:` to the AppBoundDomains array. That said, I'm not
+  /// sure whether Apple would let your app through app review if you do
+  /// whitelist an entire protocol because this feature is not mentioned in
+  /// [their blog post on App-Bound
+  /// Domains](https://webkit.org/blog/10882/app-bound-domains/).
+  ///
+  /// See https://webkit.org/blog/10882/app-bound-domains/ and
+  /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  /// for the official documentation on App-Bound Domains.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS**: Supported since version 14.0+.
+  /// - **Linux / Windows / Android / MacOS:** Unsupported.
+  #[must_use]
+  pub fn limit_navigations_to_app_bound_domains(mut self, limit_navigations: bool) -> Self {
+    self.webview_attributes = self
+      .webview_attributes
+      .limit_navigations_to_app_bound_domains(limit_navigations);
+    self
+  }
 
   /// Allows overriding the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
@@ -1273,7 +1331,7 @@ fn main() {
       target_os = "openbsd",
     )
   ))]
-  pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
+  pub fn with_related_view(mut self, related_view: webkit::WebView) -> Self {
     self.webview_attributes.related_view.replace(related_view);
     self
   }
@@ -1609,7 +1667,7 @@ impl<R: Runtime> Webview<R> {
   ///
   /// The closure is executed on the main thread.
   ///
-  /// Note that `webview2-com`, `webkit2gtk`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
+  /// Note that `webview2-com`, `webkit`, `objc2_web_kit` and similar crates may be updated in minor releases of Tauri.
   /// Therefore it's recommended to pin Tauri to at least a minor version when you're using `with_webview`.
   ///
   /// # Examples
@@ -1626,9 +1684,9 @@ tauri::Builder::default()
     main_webview.with_webview(|webview| {
       #[cfg(target_os = "linux")]
       {
-        // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
-        // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
-        use webkit2gtk::WebViewExt;
+        // see <https://docs.rs/webkit6/latest/webkit6/struct.WebView.html>
+        // and <https://docs.rs/webkit6/latest/webkit6/prelude/trait.WebViewExt.html>
+        use webkit::prelude::WebViewExt;
         webview.inner().set_zoom_level(4.);
       }
 
@@ -1860,7 +1918,7 @@ tauri::Builder::default()
       let message = invoke.message.clone();
 
       #[allow(unused_mut)]
-      let mut handled = manager.extend_api(plugin, invoke);
+      let mut handled = manager.run_plugin_invoke_handler(plugin, invoke);
 
       #[cfg(mobile)]
       {
