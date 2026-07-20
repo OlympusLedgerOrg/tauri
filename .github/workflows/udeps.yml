@@ -179,7 +179,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Download udeps
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: udeps
           path: '~/.cargo/bin'
@@ -190,7 +190,7 @@ jobs:
         run: |
           sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -exec grep -l "packages.microsoft.com" {} \; | xargs -r sudo rm -f
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libdbus-1-dev libxdo-dev
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libadwaita-1-dev libdbus-1-dev libxdo-dev
 
       - name: Run udeps
         run: cargo udeps --manifest-path ${{ matrix.path }}/Cargo.toml --all-targets --all-features
