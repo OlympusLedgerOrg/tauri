@@ -68,15 +68,18 @@ Error::AcceleratorBatchApplicationFailed {
 `Menu::append_items`, `Menu::insert_items`, `Menu::prepend_items`, their
 `Submenu` equivalents, and GTK initialization prevalidate every item they would
 materialize. If any validation fails, they return a non-empty `failures` list in
-input order, using depth-first child order for a recorded menu tree, and perform
-no materialization. A batch API uses the aggregate variant even when only one
-item fails; single-item operations and `try_build()` use
+input order (for a recorded menu tree, input order is depth-first child order)
+and perform no materialization. A batch API uses the aggregate variant even
+when only one item fails; single-item operations and `try_build()` use
 `AcceleratorApplicationFailed`.
 
 When GTK initialization materializes multiple recorded children, it must
 prevalidate every configured accelerator before materializing any child. It
 collects every failure in deterministic traversal order and leaves the batch
-unmaterialized when the collection is non-empty.
+unmaterialized when the collection is non-empty. Validation occurs before the
+window/menu instance is registered or native state is mutated. On failure, the
+recorded child tree remains in place and the window remains uninitialized, so
+the caller can correct the identified items and retry `init_for_gtk_window`.
 
 Add `try_build() -> crate::Result<Item>` consistently to all three builders as
 an opt-in early check. It performs side-effect-free validation that the
@@ -94,8 +97,8 @@ uses `MenuId`, not `Option<String>`.
 
 Do not panic, silently remove the configured accelerator, or change only the
 icon-item builder. Reserve any change to the existing `build()` return type for
-a major release. Attachment must validate before mutating parent state, or roll
-back that state if native materialization fails.
+a major release. Attachment and initialization must validate before mutating
+parent state, or roll back that state if native materialization fails.
 
 ## Consequences
 
@@ -114,7 +117,8 @@ back that state if native materialization fails.
   non-exhaustive `Error` enum.
 - Batch operations report every accelerator failure through a typed, ordered
   aggregate payload instead of forcing callers to fix one item per attempt.
-- GTK accelerator validation during initialization is collecting and batch-atomic.
+- GTK accelerator validation during initialization collects every failure and
+  is batch-atomic. Failed validation preserves the recorded children for retry.
 - Every built item has a concrete `MenuId`.
 - The implementation and tests must cover all three builders together.
 
@@ -130,6 +134,8 @@ back that state if native materialization fails.
   preserves the cause category but loses the identity of the failing item.
 - Returning only the first accelerator error from a batch: hides other invalid
   items and requires repeated materialization attempts to discover them.
+- Materializing valid items while skipping invalid ones: leaves callers with a
+  partial native menu and makes correction and retry state-dependent.
 - Calling `set_key_accelerator()` during `build()` and applying it again during
   attachment: duplicates backend work and retains the swallowed-error problem.
 - Having `try_build()` install into a temporary native menu: introduces native
@@ -148,5 +154,9 @@ the item partially attached. A GTK initialization test with an invalid
 accelerator among multiple recorded children must verify that none of the batch
 is materialized and that `AcceleratorBatchApplicationFailed` contains every
 invalid child in deterministic order. Batch APIs must also be tested with one
-failure to preserve their aggregate return shape. Tests must cover automatic
-`MenuId` assignment and compile existing `build()` call sites without changes.
+failure to preserve their aggregate return shape. After a failed GTK
+initialization, tests must verify that the recorded children remain unchanged,
+the window is not marked initialized, and correcting the invalid accelerator
+allows a retry to materialize the full batch exactly once. Tests must cover
+automatic `MenuId` assignment and compile existing `build()` call sites without
+changes.
