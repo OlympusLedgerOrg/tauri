@@ -73,21 +73,32 @@ and perform no materialization. A batch API uses the aggregate variant even
 when only one item fails; single-item operations and `try_build()` use
 `AcceleratorApplicationFailed`.
 
+Only accelerator representability or application failures are collected in
+`AcceleratorBatchApplicationFailed`. Structural and lifecycle errors that are
+not representable by `AcceleratorApplicationFailure`, including
+`NotAChildOfThisMenu` and `AlreadyInitialized`, remain direct `Error` returns
+from `Menu`, `Submenu`, and GTK initialization operations. Accelerator
+prevalidation does not reclassify or aggregate those unrelated errors.
+
 When GTK initialization materializes multiple recorded children, it must
 prevalidate every configured accelerator before materializing any child. It
 collects every failure in deterministic traversal order and leaves the batch
 unmaterialized when the collection is non-empty. Validation occurs before the
 window/menu instance is registered or native state is mutated. On failure, the
-recorded child tree remains in place and the window remains uninitialized, so
-the caller can correct the identified items and retry `init_for_gtk_window`.
+recorded child tree structure and ordering remain in place and the window
+remains uninitialized. Each child's accelerator configuration remains editable,
+so the caller can correct the identified items and retry
+`init_for_gtk_window`.
 
 Add `try_build() -> crate::Result<Item>` consistently to all three builders as
-an opt-in early check. It performs side-effect-free validation that the
-configured `KeyAccelerator` is representable by the target backend, then uses
-the same stored construction path as `build()`. It is a validation pass, not a
-trial installation into a temporary native menu, so menu-context failures can
-still occur later. It must resolve the item's concrete ID before validation so
-an `AcceleratorApplicationFailed` error identifies the attempted item.
+an opt-in early check. It performs validation without creating or mutating
+native backend state, then uses the same stored construction path as `build()`.
+It is a validation pass, not a trial installation into a temporary native menu,
+so menu-context failures can still occur later. It must resolve the item's
+concrete ID before validation so an `AcceleratorApplicationFailed` error
+identifies the attempted item. When the caller did not provide an ID, resolving
+that ID consumes the next value from the monotonic ID counter even if validation
+rejects the item; gaps from rejected `try_build()` attempts are expected.
 
 The builder's `id: Option<MenuId>` represents only whether the caller supplied
 an explicit ID. Construction always assigns a concrete `MenuId` when none was
@@ -156,7 +167,9 @@ is materialized and that `AcceleratorBatchApplicationFailed` contains every
 invalid child in deterministic order. Batch APIs must also be tested with one
 failure to preserve their aggregate return shape. After a failed GTK
 initialization, tests must verify that the recorded children remain unchanged,
-the window is not marked initialized, and correcting the invalid accelerator
-allows a retry to materialize the full batch exactly once. Tests must cover
-automatic `MenuId` assignment and compile existing `build()` call sites without
-changes.
+including their tree structure and ordering, while the window is not marked
+initialized. They must also verify that an invalid child's accelerator remains
+editable and that correcting it allows a retry to materialize the full batch
+exactly once. Tests must cover automatic `MenuId` assignment, including
+monotonic ID consumption by rejected `try_build()` attempts, and compile
+existing `build()` call sites without changes.
