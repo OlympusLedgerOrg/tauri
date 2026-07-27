@@ -12,5 +12,8 @@ allowBuilds:
   workerd: true
 
 overrides:
+  brace-expansion@>=3.0.0 <5.0.7: 5.0.7
   esbuild@>=0.27.3 <0.28.1: '>=0.28.1'
+  js-yaml@>=4.0.0 <4.3.0: 4.3.0
+  sharp@<0.35.0: 0.35.3
   ws@>=8.0.0 <8.20.1: '>=8.20.1'
