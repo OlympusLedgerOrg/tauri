@@ -55,7 +55,7 @@
 //! event_loop.run_app(&mut app).unwrap();
 //! ```
 //!
-//! If you also want to support Wayland too, then we recommend you use [`WebViewBuilderExtUnix::new_gtk`] on Linux.
+//! If you also want to support Wayland too, then we recommend you use [`WebViewBuilderExtUnix::build_gtk`] on Linux.
 //! See the following example using [`tao`]:
 //!
 //! ```no_run
@@ -115,7 +115,7 @@
 //! ```
 //!
 //! If you want to support X11 and Wayland at the same time, we recommend using
-//! [`WebViewExtUnix::new_gtk`] or [`WebViewBuilderExtUnix::new_gtk`] with [`gtk::Fixed`].
+//! [`WebViewExtUnix::new_gtk`] or [`WebViewBuilderExtUnix::build_gtk`] with [`gtk::Fixed`].
 //!
 //! ```no_run
 //! # use wry::{WebViewBuilder, raw_window_handle, Rect, dpi::*};
@@ -302,15 +302,12 @@
 //!
 //! - `os-webview` (default): Enables the default WebView framework on the platform. This must be enabled
 //!   for the crate to work. This feature was added in preparation of other ports like cef and servo.
-//! - `protocol` (default): Enables [`WebViewBuilder::with_custom_protocol`] to define custom URL scheme for handling tasks like
-//!   loading assets.
+//! - `x11` (default): Enables x11 support and dependencies on Linux.
+//! - `serde`: Enables `dpi`'s `serde` feature.
 //! - `devtools`: Enables devtools on release builds. Devtools are always enabled in debug builds.
 //!   On **macOS**, enabling devtools, requires calling private APIs so you should not enable this flag in release
 //!   build if your app needs to publish to App Store.
-//! - `transparent`: Transparent background on **macOS** requires calling private functions.
-//!   Avoid this in release build if your app needs to publish to App Store.
-//! - `fullscreen`: Fullscreen video and other media on **macOS** requires calling private functions.
-//!   Avoid this in release build if your app needs to publish to App Store.
+//! - `mac-proxy`: Enables `WebViewBuilder::with_proxy_config` on macOS.
 //! - `linux-body`: Enables body support of custom protocol request on Linux. Requires
 //!   WebKit2GTK v2.40 or above.
 //! - `tracing`: enables [`tracing`] for `evaluate_script`, `ipc_handler`, and `custom_protocols`.
@@ -781,7 +778,7 @@ struct WebViewAttributes<'a> {
 
   /// The webview bounds. Defaults to `x: 0, y: 0, width: 200, height: 200`.
   /// This is only effective if the webview was created by [`WebViewBuilder::new_as_child`]
-  /// or on Linux, if was created by [`WebViewExtUnix::new_gtk`] or [`WebViewBuilderExtUnix::new_gtk`] with [`gtk::Fixed`].
+  /// or on Linux, if was created by [`WebViewExtUnix::new_gtk`] or [`WebViewBuilderExtUnix::build_gtk`] with [`gtk::Fixed`].
   pub bounds: Option<Rect>,
 
   /// Whether background throttling should be disabled.
@@ -1079,7 +1076,6 @@ impl<'a> WebViewBuilder<'a> {
   ///   elsewhere in Android (provided the app has appropriate access), but not from the `assets`
   ///   folder which lives within the apk. For the cases where this can be used, it works the same as in macOS and Linux.
   /// - iOS: To get the path of your assets, you can call [`CFBundle::resources_path`](https://docs.rs/core-foundation/latest/core_foundation/bundle/struct.CFBundle.html#method.resources_path). So url like `wry://assets/index.html` could get the html file in assets directory.
-  #[cfg(feature = "protocol")]
   pub fn with_custom_protocol<F>(mut self, name: String, handler: F) -> Self
   where
     F: Fn(WebViewId, Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> + Send + Sync + 'static,
@@ -1144,7 +1140,6 @@ impl<'a> WebViewBuilder<'a> {
   ///     });
   ///   });
   /// ```
-  #[cfg(feature = "protocol")]
   pub fn with_asynchronous_custom_protocol<F>(mut self, name: String, handler: F) -> Self
   where
     F: Fn(WebViewId, Request<Vec<u8>>, RequestAsyncResponder) + Send + Sync + 'static,
@@ -1482,7 +1477,7 @@ impl<'a> WebViewBuilder<'a> {
   }
 
   /// Specify the webview position relative to its parent if it will be created as a child
-  /// or if created using [`WebViewBuilderExtUnix::new_gtk`] with [`gtk::Fixed`].
+  /// or if created using [`WebViewBuilderExtUnix::build_gtk`] with [`gtk::Fixed`].
   ///
   /// Defaults to `x: 0, y: 0, width: 200, height: 200`.
   pub fn with_bounds(mut self, bounds: Rect) -> Self {
@@ -1539,7 +1534,7 @@ impl<'a> WebViewBuilder<'a> {
   ///
   /// # Platform-specific:
   ///
-  /// - **Linux**: Only X11 is supported, if you want to support Wayland too, use [`WebViewBuilderExtUnix::new_gtk`].
+  /// - **Linux**: Only X11 is supported, if you want to support Wayland too, use [`WebViewBuilderExtUnix::build_gtk`].
   ///
   ///   Although this method only needs a window handle, WebKitGTK still needs GTK to be initialized
   ///   and the GTK main context to be iterated alongside your event loop.
@@ -1583,7 +1578,7 @@ impl<'a> WebViewBuilder<'a> {
   ///   Checkout the [Platform Considerations](https://docs.rs/wry/latest/wry/#platform-considerations) section in the crate root documentation.
   ///
   ///   If you want to support child webviews on X11 and Wayland at the same time,
-  ///   we recommend using [`WebViewBuilderExtUnix::new_gtk`] with [`gtk::Fixed`].
+  ///   we recommend using [`WebViewBuilderExtUnix::build_gtk`] with [`gtk::Fixed`].
   /// - **Android/iOS:** Unsupported.
   ///
   /// # Panics:
@@ -1994,7 +1989,6 @@ pub trait WebViewBuilderExtAndroid {
   /// String, similar to [`with_custom_protocol`], but also sets the WebViewAssetLoader with the
   /// necessary domain (which is fixed as `<protocol>.assets`). This cannot be used in conjunction
   /// to `with_custom_protocol` for Android, as it changes the way in which requests are handled.
-  #[cfg(feature = "protocol")]
   fn with_asset_loader(self, protocol: String) -> Self;
 
   /// Determines whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost`.
@@ -2021,7 +2015,6 @@ impl WebViewBuilderExtAndroid for WebViewBuilder<'_> {
     self
   }
 
-  #[cfg(feature = "protocol")]
   fn with_asset_loader(mut self, protocol: String) -> Self {
     if self.attrs.custom_protocols.contains_key(&protocol) {
       self.error = self
@@ -2304,7 +2297,7 @@ impl WebView {
   /// Set the webview bounds.
   ///
   /// This is only effective if the webview was created as a child
-  /// or created using [`WebViewBuilderExtUnix::new_gtk`] with [`gtk::Fixed`].
+  /// or created using [`WebViewBuilderExtUnix::build_gtk`] with [`gtk::Fixed`].
   pub fn set_bounds(&self, bounds: Rect) -> Result<()> {
     self.webview.set_bounds(bounds)
   }
