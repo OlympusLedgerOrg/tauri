@@ -10,7 +10,7 @@ use tao::{
   window::WindowBuilder,
 };
 use wry::{
-  http::{header::CONTENT_TYPE, Request, Response},
+  http::{header::CONTENT_TYPE, Request, Response, StatusCode},
   WebViewBuilder,
 };
 
@@ -82,23 +82,36 @@ fn get_wry_response(
   let root = std::fs::canonicalize(root)?;
   let file_path = std::fs::canonicalize(root.join(path))?;
   if !file_path.starts_with(&root) {
-    return Err("requested path escapes the example root".into());
+    return Ok(
+      Response::builder()
+        .status(StatusCode::NOT_FOUND)
+        .header(CONTENT_TYPE, "text/plain")
+        .body(b"not found".to_vec())?,
+    );
   }
   let content = std::fs::read(file_path)?;
 
-  // Return asset contents and mime types based on file extentions
+  // Return asset contents and mime types based on file extensions
   // If you don't want to do this manually, there are some crates for you.
   // Such as `infer` and `mime_guess`.
   let mimetype = if path.ends_with(".html") || path == "/" {
-    "text/html"
+    Some("text/html")
   } else if path.ends_with(".js") {
-    "text/javascript"
+    Some("text/javascript")
   } else if path.ends_with(".png") {
-    "image/png"
+    Some("image/png")
   } else if path.ends_with(".wasm") {
-    "application/wasm"
+    Some("application/wasm")
   } else {
-    unimplemented!();
+    None
+  };
+  let Some(mimetype) = mimetype else {
+    return Ok(
+      Response::builder()
+        .status(StatusCode::UNSUPPORTED_MEDIA_TYPE)
+        .header(CONTENT_TYPE, "text/plain")
+        .body(b"unsupported media type".to_vec())?,
+    );
   };
 
   Response::builder()

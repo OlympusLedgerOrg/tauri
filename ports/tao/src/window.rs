@@ -831,7 +831,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android:** Unsupported. Returns ane empty string.
+  /// - **iOS / Android:** Unsupported. Returns an empty string.
   #[inline]
   pub fn title(&self) -> String {
     self.window.title()
@@ -1661,6 +1661,7 @@ pub enum ResizeDirection {
   West,
 }
 
+#[cfg(any(target_os = "windows", target_os = "linux"))]
 pub(crate) fn hit_test(
   (left, top, right, bottom): (i32, i32, i32, i32),
   cx: i32,

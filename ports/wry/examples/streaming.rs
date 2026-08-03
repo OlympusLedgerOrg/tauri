@@ -103,15 +103,23 @@ fn wry_protocol(
   }
   let content = std::fs::read(file_path)?;
 
-  // Return asset contents and mime types based on file extentions
+  // Return asset contents and mime types based on file extensions
   // If you don't want to do this manually, there are some crates for you.
   // Such as `infer` and `mime_guess`.
   let mimetype = if path.ends_with(".html") || path == "/" {
-    "text/html"
+    Some("text/html")
   } else if path.ends_with(".js") {
-    "text/javascript"
+    Some("text/javascript")
   } else {
-    unimplemented!();
+    None
+  };
+  let Some(mimetype) = mimetype else {
+    return Ok(
+      Response::builder()
+        .status(StatusCode::UNSUPPORTED_MEDIA_TYPE)
+        .header(CONTENT_TYPE, "text/plain")
+        .body(b"unsupported media type".to_vec())?,
+    );
   };
 
   Response::builder()
