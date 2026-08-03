@@ -51,6 +51,17 @@ pub unsafe fn multiple_scenes_enabled() -> bool {
   (*num).as_bool()
 }
 
+unsafe fn handle_scene_window_events(scene: &UIScene, event: impl Fn() -> WindowEvent<'static>) {
+  if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
+    for window in window_scene.windows() {
+      app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
+        window_id: RootWindowId(window.into()),
+        event: event(),
+      }));
+    }
+  }
+}
+
 define_class!(
   #[unsafe(super(NSObject))]
   #[name = "TaoSceneDelegate"]
@@ -93,19 +104,17 @@ define_class!(
     #[unsafe(method(sceneWillResignActive:))]
     fn sceneWillResignActive(&self, scene: &UIScene) {
       unsafe {
-        if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
-          for window in window_scene.windows() {
-            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
-              window_id: RootWindowId(window.into()),
-              event: WindowEvent::Focused(false),
-            }));
-          }
-        }
+        handle_scene_window_events(scene, || WindowEvent::Focused(false));
+        handle_scene_window_events(scene, || WindowEvent::Suspended);
       }
     }
 
     #[unsafe(method(sceneWillEnterForeground:))]
-    fn sceneWillEnterForeground(&self, _scene: &UIScene) {}
+    fn sceneWillEnterForeground(&self, scene: &UIScene) {
+      unsafe {
+        handle_scene_window_events(scene, || WindowEvent::Resumed);
+      }
+    }
 
     #[unsafe(method(sceneDidEnterBackground:))]
     fn sceneDidEnterBackground(&self, _scene: &UIScene) {}
@@ -195,14 +204,12 @@ define_class!(
 
   #[allow(non_snake_case)]
   unsafe impl UIWindowSceneDelegate for TaoSceneDelegate {
-    #[unsafe(method(preferredWindowingControlStyleForScene:))]
+    #[unsafe(method_id(preferredWindowingControlStyleForScene:))]
     fn preferredWindowingControlStyleForScene(
       &self,
       _window_scene: &UIWindowScene,
-    ) -> Option<std::ptr::NonNull<UISceneWindowingControlStyle>> {
-      std::ptr::NonNull::new(Retained::autorelease_ptr(
-        UISceneWindowingControlStyle::minimalStyle(),
-      ))
+    ) -> Retained<UISceneWindowingControlStyle> {
+      UISceneWindowingControlStyle::minimalStyle()
     }
   }
 );

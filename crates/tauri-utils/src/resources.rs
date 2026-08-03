@@ -138,8 +138,9 @@ pub struct ResourcePathsIter<'a> {
   /// The iter for the current pattern. The cycle goes like this:
   /// [`ResourcePaths::next`] -> [`Self::next`] -> [`Self::pattern_iter::next`] -> [`Self::current_iter::next`]
   current_iter: Option<ResourcePathsInnerIter>,
-  /// Directories that were walked or globbed while iterating. Build scripts
-  /// should watch these so new or removed files re-trigger resource copying.
+  /// Paths that were walked or globbed while iterating. Build scripts
+  /// should emit a `rerun-if-changed` for each so that adding or removing a
+  /// file inside a resource directory re-triggers the resource copy.
   rerun_if_changed: Vec<PathBuf>,
 }
 
@@ -173,11 +174,13 @@ impl Iterator for ResourcePathsInnerIter {
 }
 
 impl ResourcePathsIter<'_> {
-  /// Directories that were walked or globbed while iterating.
+  /// Paths that were walked or globbed while iterating.
   ///
-  /// Build scripts should emit `cargo:rerun-if-changed` for each directory
-  /// after exhausting the iterator, so newly added or removed resource files
-  /// are noticed by cargo.
+  /// A build script should emit a `cargo:rerun-if-changed` for each of these
+  /// after iterating, so that adding or removing a file inside a resource
+  /// directory re-runs the script and copies the new files. Only meaningful
+  /// once iteration has produced the entries (i.e. after the iterator is
+  /// exhausted).
   pub fn rerun_if_changed(&self) -> &[PathBuf] {
     &self.rerun_if_changed
   }
@@ -261,6 +264,8 @@ impl ResourcePathsIter<'_> {
     };
 
     if pattern.contains('*') {
+      // Watch the fixed directory prefix of the glob (everything before the
+      // first wildcard component) so new files matching the glob are noticed.
       let mut base = PathBuf::new();
       for component in Path::new(pattern).components() {
         if component.as_os_str().to_string_lossy().contains('*') {
@@ -286,11 +291,11 @@ impl ResourcePathsIter<'_> {
       }
     } else {
       let path = normalize(Path::new(pattern));
+      self.rerun_if_changed.push(path.clone());
       if path.is_dir() {
         if !self.allow_walk {
           return Some(Err(crate::Error::NotAllowedToWalkDir(path)));
         }
-        self.rerun_if_changed.push(path.clone());
         self.current_iter = Some(ResourcePathsInnerIter::Walk {
           iter: WalkDir::new(&path).into_iter(),
           current_pattern: if matches!(self.pattern_iter, PatternIter::Map(_)) {
@@ -482,35 +487,32 @@ mod tests {
 
   #[test]
   #[serial_test::serial(resources)]
-  fn resource_paths_iter_tracks_rerun_dirs() {
+  fn resource_paths_iter_rerun_if_changed() {
     setup_test_dirs();
 
     let dir = std::env::current_dir().unwrap().join("src-tauri");
     let _ = std::env::set_current_dir(dir);
 
     let patterns = [
-      "../src/script.js".to_string(),
-      "../src/assets".to_string(),
-      "../src/textures/**/*".to_string(),
+      "../src/script.js".into(),
+      "../src/assets".into(),
+      "../src/textures/**/*".into(),
+      "*.toml".into(),
     ];
-    let mut iter = ResourcePaths::new(&patterns, true).iter();
+    let mut resources = ResourcePaths::new(&patterns, true).iter();
 
-    for resource in iter.by_ref() {
+    for resource in resources.by_ref() {
       resource.unwrap();
     }
 
-    let rerun = iter.rerun_if_changed();
-    assert!(
-      rerun.contains(&normalize(Path::new("../src/assets"))),
-      "expected resource directory to be watched, got {rerun:?}"
-    );
-    assert!(
-      rerun.contains(&PathBuf::from("../src/textures")),
-      "expected glob base directory to be watched, got {rerun:?}"
-    );
-    assert!(
-      !rerun.contains(&normalize(Path::new("../src/script.js"))),
-      "single-file pattern should not be watched as a directory, got {rerun:?}"
+    assert_eq!(
+      resources.rerun_if_changed(),
+      &[
+        normalize(Path::new("../src/script.js")),
+        normalize(Path::new("../src/assets")),
+        normalize(Path::new("../src/textures")),
+        PathBuf::from("."),
+      ]
     );
   }
 

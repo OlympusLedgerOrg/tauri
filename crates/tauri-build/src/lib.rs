@@ -91,8 +91,6 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   for resource in resources.by_ref() {
     let resource = resource?;
 
-    println!("cargo:rerun-if-changed={}", resource.path().display());
-
     // avoid copying the resource if target is the same as source
     let src = resource.path().canonicalize()?;
     let target = path.join(resource.target());
@@ -101,10 +99,8 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
     }
   }
 
-  // Watch each resource directory so adding or removing files inside it
-  // re-runs the build script. Individual file watches miss newly added files.
-  for dir in resources.rerun_if_changed() {
-    println!("cargo:rerun-if-changed={}", dir.display());
+  for path in resources.rerun_if_changed() {
+    println!("cargo:rerun-if-changed={}", path.display());
   }
 
   Ok(())
@@ -375,6 +371,7 @@ pub struct Attributes {
   #[allow(dead_code)]
   windows_attributes: WindowsAttributes,
   capabilities_path_pattern: Option<&'static str>,
+  config_path: Option<PathBuf>,
   #[cfg(feature = "codegen")]
   codegen: Option<codegen::context::CodegenContext>,
   inlined_plugins: HashMap<&'static str, InlinedPlugin>,
@@ -423,6 +420,16 @@ impl Attributes {
     I: IntoIterator<Item = (&'static str, InlinedPlugin)>,
   {
     self.inlined_plugins.extend(plugins);
+    self
+  }
+
+  /// Set the path to the `tauri.conf.json` (relative to the crate's directory).
+  ///
+  /// This defaults to a file called `tauri.conf.json` inside of the current working directory of
+  /// the crate compiling; does not need to be set manually if that config file is in the same
+  /// directory as your `Cargo.toml`.
+  pub fn config_path(mut self, config_path: impl Into<PathBuf>) -> Self {
+    self.config_path = Some(config_path.into());
     self
   }
 
@@ -500,8 +507,19 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  let (mut config, config_paths) =
-    tauri_utils::config::parse::read_from(target, &env::current_dir().unwrap())?;
+  let config_root = if let Some(config_path) = &attributes.config_path {
+    config_path.parent().with_context(|| {
+      format!(
+        "`config_path` '{}' doesn't have a parent directory",
+        config_path.display()
+      )
+    })?
+  } else {
+    &env::current_dir().unwrap()
+  };
+
+  let (mut config, config_paths) = tauri_utils::config::parse::read_from(target, config_root)?;
+
   for config_file_path in config_paths {
     println!("cargo:rerun-if-changed={}", config_file_path.display());
   }
@@ -573,7 +591,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     )?;
   }
 
-  #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config
     .bundle
     .resources
@@ -735,7 +752,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   #[cfg(feature = "codegen")]
-  if let Some(codegen) = attributes.codegen {
+  if let Some(mut codegen) = attributes.codegen {
+    if codegen.config_path.is_none() {
+      codegen.config_path = attributes.config_path;
+    }
     codegen.try_build()?;
   }
 
