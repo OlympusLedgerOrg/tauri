@@ -4320,7 +4320,7 @@ fn handle_event_loop<T: UserEvent>(
         let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
 
         if !should_prevent {
-          *control_flow = ControlFlow::Exit;
+          *control_flow = ControlFlow::ExitWithCode(code);
         }
       }
       Message::Window(id, WindowMessage::Close) => {
