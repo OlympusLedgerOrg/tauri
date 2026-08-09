@@ -11,4 +11,12 @@ ignore = [
   "RUSTSEC-2026-0097",
   # glib 0.18.5 unsoundness, fixed by updating to gtk4
   "RUSTSEC-2024-0429",
+  # rkyv 0.7 out-of-bounds read via Rc/Arc archives. Patched only in >= 0.8.17;
+  # the 0.7 series is unsupported upstream. rkyv reaches Cargo.lock solely as an
+  # *optional, non-activated* dependency of rust_decimal (rust_decimal ->
+  # byte-unit -> tauri-plugin-log -> examples/api), so it is never compiled:
+  # `cargo tree -i rkyv --workspace --target all` resolves to nothing. No
+  # workspace code deserializes rkyv archives, trusted or otherwise. Removable
+  # only when rust_decimal moves its optional dep to rkyv 0.8.
+  "RUSTSEC-2026-0235",
 ]
