@@ -79,6 +79,23 @@ jobs:
             "$ANDROID_HOME/platform-tools/adb" logcat -v threadtime > "$GITHUB_WORKSPACE/r8-plugin-discovery-logcat.txt" &
             ./gradlew :app:connectedReleaseAndroidTest --stacktrace --info
 
+      # Artifact downloads require reaching Azure Blob Storage, which some CI
+      # log viewers can't do -- print the diagnostics into the job log itself
+      # (app-relevant logcat lines + any XML test results) so they're always
+      # readable from the run's own log output, even after a cancellation.
+      - name: print diagnostics
+        if: always()
+        run: |
+          echo "::group::logcat (com.example.r8plugindiscovery / runtime / instrumentation lines)"
+          grep -E 'com\.example\.r8plugindiscovery|AndroidRuntime|FATAL EXCEPTION|ActivityManager|TestRunner|ANR |Instrumentation' \
+            r8-plugin-discovery-logcat.txt 2>/dev/null | tail -n 400 || echo "(no logcat file captured)"
+          echo "::endgroup::"
+          echo "::group::androidTest XML results"
+          find examples/android-r8-plugin-discovery/app/build/outputs/androidTest-results \
+            examples/android-r8-plugin-discovery/app/build/reports/androidTests \
+            -type f 2>/dev/null -exec sh -c 'echo "--- {} ---"; cat "{}"' \;
+          echo "::endgroup::"
+
       - name: upload diagnostics
         if: always()
         uses: actions/upload-artifact@v4
