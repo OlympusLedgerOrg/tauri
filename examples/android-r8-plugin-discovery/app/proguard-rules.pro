@@ -9,3 +9,7 @@
 # shipped consumer-rules.pro is not actually sufficient for a real consuming
 # app, which is exactly the class of bug this module is here to catch.
 -keepattributes SourceFile,LineNumberTable
+
+# Unrelated to the thing under test: androidx.test's tracing code references
+# a compile-only errorprone annotation that isn't on the runtime classpath.
+-dontwarn com.google.errorprone.annotations.**
