@@ -25,6 +25,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // testBuildType = "release" below means this module's androidTest APK
+        // is minified too, using its own R8 pass separate from the app APK's
+        // proguardFiles -- it needs the same rules.
+        testProguardFiles("proguard-rules.pro")
     }
 
     buildTypes {
