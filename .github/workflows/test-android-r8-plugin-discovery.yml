@@ -59,6 +59,9 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: run minified-release plugin discovery test
+        # Leaves headroom inside the job's 15-minute budget for the always()
+        # diagnostics upload below to run after this step is cancelled.
+        timeout-minutes: 12
         uses: reactivecircus/android-emulator-runner@v2
         with:
           working-directory: examples/android-r8-plugin-discovery
@@ -66,4 +69,24 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: ./gradlew :app:connectedReleaseAndroidTest --stacktrace
+          # connectedAndroidTest prints nothing to the Gradle console between
+          # task start and completion by default, which previously made a
+          # hang indistinguishable from a slow run. --info surfaces adb
+          # install/instrumentation progress, and the background logcat
+          # capture records what the device/app were doing if it hangs again.
+          script: |
+            "$ANDROID_HOME/platform-tools/adb" logcat -c
+            "$ANDROID_HOME/platform-tools/adb" logcat -v threadtime > "$GITHUB_WORKSPACE/r8-plugin-discovery-logcat.txt" &
+            ./gradlew :app:connectedReleaseAndroidTest --stacktrace --info
+
+      - name: upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8-plugin-discovery-diagnostics
+          if-no-files-found: ignore
+          retention-days: 5
+          path: |
+            r8-plugin-discovery-logcat.txt
+            examples/android-r8-plugin-discovery/app/build/reports/androidTests/connected/**
+            examples/android-r8-plugin-discovery/app/build/outputs/androidTest-results/connected/**
