@@ -3,6 +3,14 @@
   native <methods>;
 }
 
+# R8 strips RuntimeVisibleAnnotations and AnnotationDefault from class files by
+# default. Plugin discovery is entirely reflection-based (TauriPlugin.permissions,
+# Command/ActivityCallback/PermissionCallback method lookup via getAnnotation()/
+# isAnnotationPresent() in PluginHandle.indexMethods()), so losing these attributes
+# silently breaks every plugin in a minified release build even though the -keep
+# rules below still preserve the classes and methods themselves.
+-keepattributes RuntimeVisibleAnnotations,AnnotationDefault
+
 -keep class app.tauri.plugin.JSArray {
   public <init>(...);
 }

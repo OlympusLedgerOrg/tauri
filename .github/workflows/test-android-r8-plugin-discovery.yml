@@ -1,0 +1,66 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+# Regression test for crates/tauri/mobile/android/consumer-rules.pro: proves a
+# minified ("release", isMinifyEnabled = true) app that only depends on the
+# tauri-android library's own consumer ProGuard rules can still reflectively
+# discover and invoke a @TauriPlugin's @Command / @ActivityCallback /
+# @PermissionCallback methods and read TauriPlugin.permissions. See
+# examples/android-r8-plugin-discovery/README.md.
+#
+# This must run on a real device/emulator: `testBuildType = "release"` means
+# the instrumented test below installs and runs the actual R8-minified APK,
+# which is the only way to observe R8 stripping RuntimeVisibleAnnotations /
+# AnnotationDefault -- a JVM unit test never sees R8 output at all.
+name: test android r8 plugin discovery
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/test-android-r8-plugin-discovery.yml'
+      - 'crates/tauri/mobile/android/consumer-rules.pro'
+      - 'crates/tauri/mobile/android/src/main/java/app/tauri/annotation/**'
+      - 'crates/tauri/mobile/android/src/main/java/app/tauri/plugin/**'
+      - 'crates/tauri/mobile/android/build.gradle.kts'
+      - 'examples/android-r8-plugin-discovery/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # KVM-backed runner required by the emulator action.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: gradle
+
+      - name: setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: run minified-release plugin discovery test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          working-directory: examples/android-r8-plugin-discovery
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: ./gradlew :app:connectedReleaseAndroidTest --stacktrace
