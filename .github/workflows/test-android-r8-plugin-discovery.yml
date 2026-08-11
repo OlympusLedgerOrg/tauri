@@ -34,6 +34,9 @@ jobs:
   test:
     # KVM-backed runner required by the emulator action.
     runs-on: ubuntu-latest
+    # Bounds a hung/deadlocked instrumented test run (e.g. connectedReleaseAndroidTest
+    # never returning) to a fast failure instead of GitHub's 360-minute default.
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v7
