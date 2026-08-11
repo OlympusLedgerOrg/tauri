@@ -37,7 +37,7 @@ app's `tauri.settings.gradle` — so the `:app` module receives
 `testBuildType = "release"` for the `release` build type (signed with the
 debug key purely so the test APK can be installed — this app is never
 distributed). The test in `app/src/androidTest/.../ReflectivePluginDiscoveryTest.kt`
-is an instrumented test, deliberately *not* a JVM unit test under
+is an instrumented test, deliberately _not_ a JVM unit test under
 `app/src/test`: AGP unit tests compile and run straight from Kotlin sources
 and never pass through R8, so a unit test making the same assertions would
 pass identically whether or not `consumer-rules.pro` had the keep rule at
