@@ -5,7 +5,8 @@
 
     <application
         android:allowBackup="false"
-        android:label="tauri-r8-plugin-discovery-test">
+        android:label="tauri-r8-plugin-discovery-test"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
         <activity
             android:name=".MainActivity"
             android:exported="true">
