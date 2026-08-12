@@ -13,3 +13,10 @@
 # Unrelated to the thing under test: androidx.test's tracing code references
 # a compile-only errorprone annotation that isn't on the runtime classpath.
 -dontwarn com.google.errorprone.annotations.**
+
+# Unrelated to the thing under test: AndroidJUnitRunner.onCreate() calls into
+# androidx.tracing.Trace directly, but nothing else in this app references
+# it, so R8 strips it as unused. Without this the instrumentation process
+# crashes with NoClassDefFoundError before the test runner can even attach,
+# which `am instrument` reports as a hang rather than a clean failure.
+-keep class androidx.tracing.Trace { *; }
