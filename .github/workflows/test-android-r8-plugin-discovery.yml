@@ -15,6 +15,9 @@
 # AnnotationDefault -- a JVM unit test never sees R8 output at all.
 name: test android r8 plugin discovery
 
+permissions:
+  contents: read
+
 on:
   pull_request:
     paths:
@@ -77,6 +80,8 @@ jobs:
           script: |
             "$ANDROID_HOME/platform-tools/adb" logcat -c
             "$ANDROID_HOME/platform-tools/adb" logcat -v threadtime > "$GITHUB_WORKSPACE/r8-plugin-discovery-logcat.txt" &
+            logcat_pid=$!
+            trap 'kill "$logcat_pid" 2>/dev/null; wait "$logcat_pid" 2>/dev/null || true' EXIT
             ./gradlew :app:connectedReleaseAndroidTest --stacktrace --info
 
       # Artifact downloads require reaching Azure Blob Storage, which some CI
@@ -91,9 +96,10 @@ jobs:
             r8-plugin-discovery-logcat.txt 2>/dev/null | tail -n 400 || echo "(no logcat file captured)"
           echo "::endgroup::"
           echo "::group::androidTest XML results"
-          find examples/android-r8-plugin-discovery/app/build/outputs/androidTest-results \
-            examples/android-r8-plugin-discovery/app/build/reports/androidTests \
-            -type f 2>/dev/null -exec sh -c 'echo "--- {} ---"; cat "{}"' \;
+          for d in examples/android-r8-plugin-discovery/app/build/outputs/androidTest-results \
+                   examples/android-r8-plugin-discovery/app/build/reports/androidTests; do
+            [ -d "$d" ] && find "$d" -type f -exec sh -c 'echo "--- $1 ---"; cat "$1"' sh {} \;
+          done
           echo "::endgroup::"
 
       - name: upload diagnostics
