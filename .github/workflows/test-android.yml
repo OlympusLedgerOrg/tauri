@@ -57,14 +57,14 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 17
-          cache: 'gradle'
+          java-version: 25
+          cache: gradle
 
       - name: Setup NDK
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r25b
+          ndk-version: r29
           local-cache: true
 
       # TODO check after https://github.com/nttld/setup-ndk/issues/518 is fixed
@@ -88,16 +88,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: build CLI
-        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
-
-      - name: move CLI to cargo bin dir
-        if: matrix.platform != 'windows-latest'
-        run: mv ./target/debug/cargo-tauri $HOME/.cargo/bin
-
-      - name: move CLI to cargo bin dir
-        if: matrix.platform == 'windows-latest'
-        run: mv ./target/debug/cargo-tauri.exe $HOME/.cargo/bin
+      - name: build and install CLI
+        run: cargo install tauri-cli --path ./crates/tauri-cli/ --locked --debug
 
       - run: pnpm i --frozen-lockfile
 

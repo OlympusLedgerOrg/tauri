@@ -1,0 +1,115 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+# Regression test for crates/tauri/mobile/android/consumer-rules.pro: proves a
+# minified ("release", isMinifyEnabled = true) app that only depends on the
+# tauri-android library's own consumer ProGuard rules can still reflectively
+# discover and invoke a @TauriPlugin's @Command / @ActivityCallback /
+# @PermissionCallback methods and read TauriPlugin.permissions. See
+# examples/android-r8-plugin-discovery/README.md.
+#
+# This must run on a real device/emulator: `testBuildType = "release"` means
+# the instrumented test below installs and runs the actual R8-minified APK,
+# which is the only way to observe R8 stripping RuntimeVisibleAnnotations /
+# AnnotationDefault -- a JVM unit test never sees R8 output at all.
+name: test android r8 plugin discovery
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/test-android-r8-plugin-discovery.yml'
+      - 'crates/tauri/mobile/android/consumer-rules.pro'
+      - 'crates/tauri/mobile/android/src/main/java/app/tauri/annotation/**'
+      - 'crates/tauri/mobile/android/src/main/java/app/tauri/plugin/**'
+      - 'crates/tauri/mobile/android/build.gradle.kts'
+      - 'examples/android-r8-plugin-discovery/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # KVM-backed runner required by the emulator action.
+    runs-on: ubuntu-latest
+    # Bounds a hung/deadlocked instrumented test run (e.g. connectedReleaseAndroidTest
+    # never returning) to a fast failure instead of GitHub's 360-minute default.
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: gradle
+
+      - name: setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: run minified-release plugin discovery test
+        # Leaves headroom inside the job's 15-minute budget for the always()
+        # diagnostics upload below to run after this step is cancelled.
+        timeout-minutes: 12
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          working-directory: examples/android-r8-plugin-discovery
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          # connectedAndroidTest prints nothing to the Gradle console between
+          # task start and completion by default, which previously made a
+          # hang indistinguishable from a slow run. --info surfaces adb
+          # install/instrumentation progress, and the background logcat
+          # capture records what the device/app were doing if it hangs again.
+          script: |
+            "$ANDROID_HOME/platform-tools/adb" logcat -c
+            "$ANDROID_HOME/platform-tools/adb" logcat -v threadtime > "$GITHUB_WORKSPACE/r8-plugin-discovery-logcat.txt" &
+            logcat_pid=$!
+            trap 'kill "$logcat_pid" 2>/dev/null; wait "$logcat_pid" 2>/dev/null || true' EXIT
+            ./gradlew :app:connectedReleaseAndroidTest --stacktrace --info
+
+      # Artifact downloads require reaching Azure Blob Storage, which some CI
+      # log viewers can't do -- print the diagnostics into the job log itself
+      # (app-relevant logcat lines + any XML test results) so they're always
+      # readable from the run's own log output, even after a cancellation.
+      - name: print diagnostics
+        if: always()
+        run: |
+          echo "::group::logcat (com.example.r8plugindiscovery / runtime / instrumentation lines)"
+          grep -E 'com\.example\.r8plugindiscovery|AndroidRuntime|FATAL EXCEPTION|ActivityManager|TestRunner|ANR |Instrumentation' \
+            r8-plugin-discovery-logcat.txt 2>/dev/null | tail -n 400 || echo "(no logcat file captured)"
+          echo "::endgroup::"
+          echo "::group::androidTest XML results"
+          for d in examples/android-r8-plugin-discovery/app/build/outputs/androidTest-results \
+                   examples/android-r8-plugin-discovery/app/build/reports/androidTests; do
+            [ -d "$d" ] && find "$d" -type f -exec sh -c 'echo "--- $1 ---"; cat "$1"' sh {} \;
+          done
+          echo "::endgroup::"
+
+      - name: upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8-plugin-discovery-diagnostics
+          if-no-files-found: ignore
+          retention-days: 5
+          path: |
+            r8-plugin-discovery-logcat.txt
+            examples/android-r8-plugin-discovery/app/build/reports/androidTests/connected/**
+            examples/android-r8-plugin-discovery/app/build/outputs/androidTest-results/connected/**
