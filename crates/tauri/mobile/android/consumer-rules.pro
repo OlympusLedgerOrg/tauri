@@ -24,6 +24,19 @@
   public put(...);
 }
 
+# Invoke is constructed directly (not via reflection) by any code that calls
+# into a plugin's Command/ActivityCallback/PermissionCallback methods, which
+# can live outside this library's own compilation unit (a plugin author's
+# module, a test module, ...). Without an explicit keep, R8 can determine the
+# constructor has no caller *it* can see and shrink/inline it away, and
+# ObjectMapper is a real parameter type of that constructor -- both produce a
+# NoSuchMethodError at the external call site even though the source matches.
+-keep class app.tauri.plugin.Invoke {
+  public <init>(...);
+}
+
+-keep class com.fasterxml.jackson.databind.ObjectMapper { *; }
+
 -keep @app.tauri.annotation.TauriPlugin public class * {
   @app.tauri.annotation.Command public <methods>;
   @app.tauri.annotation.PermissionCallback <methods>;

@@ -31,14 +31,3 @@
 # .Lambda, then kotlin.LazyKt, ...). Keep the whole runtime support package
 # rather than chasing each one individually.
 -keep class kotlin.** { *; }
-
-# Unrelated to the thing under test: the app APK and the androidTest APK are
-# minified in two SEPARATE R8 passes. The test calls Invoke's real
-# constructor directly (not through reflection), so its compiled descriptor
-# must match between both APKs byte-for-byte. Without this, R8 is free to
-# rename/obfuscate Jackson's ObjectMapper (the constructor's last parameter
-# type) differently -- or not at all -- in each pass, producing a
-# NoSuchMethodError at runtime for a constructor that exists in both APKs
-# but under two different type descriptors. Applies to both APKs since this
-# file is wired into both proguardFiles and testProguardFiles.
--keep class com.fasterxml.jackson.databind.ObjectMapper { *; }
