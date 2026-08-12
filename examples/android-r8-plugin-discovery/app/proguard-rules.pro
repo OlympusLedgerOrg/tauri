@@ -20,3 +20,11 @@
 # crashes with NoClassDefFoundError before the test runner can even attach,
 # which `am instrument` reports as a hang rather than a clean failure.
 -keep class androidx.tracing.Trace { *; }
+
+# Unrelated to the thing under test: AndroidJUnitRunner.onStart() ->
+# androidx.test.platform.io.FileTestStorage's <init> references a
+# Kotlin-compiled lambda, whose generated class extends kotlin.jvm.internal
+# base classes (Lambda and the FunctionN interfaces it implements). Nothing
+# else in this app is Kotlin-compiled androidx.test code, so R8 strips the
+# whole package as unused, crashing the process the same way as above.
+-keep class kotlin.jvm.internal.** { *; }
