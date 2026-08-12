@@ -21,10 +21,13 @@
 # which `am instrument` reports as a hang rather than a clean failure.
 -keep class androidx.tracing.Trace { *; }
 
-# Unrelated to the thing under test: AndroidJUnitRunner.onStart() ->
-# androidx.test.platform.io.FileTestStorage's <init> references a
-# Kotlin-compiled lambda, whose generated class extends kotlin.jvm.internal
-# base classes (Lambda and the FunctionN interfaces it implements). Nothing
-# else in this app is Kotlin-compiled androidx.test code, so R8 strips the
-# whole package as unused, crashing the process the same way as above.
--keep class kotlin.jvm.internal.** { *; }
+# Unrelated to the thing under test: androidx.test's own IO helpers
+# (FileTestStorage, OutputDirCalculator, ...) are Kotlin-compiled and use
+# stdlib features (lambdas, `by lazy`, etc.) that resolve to various
+# kotlin.* / kotlin.jvm.internal.* classes at runtime. Nothing else in this
+# app is Kotlin-compiled androidx.test code, so R8 strips whichever of these
+# aren't directly referenced elsewhere as unused, crashing the process one
+# missing class at a time (androidx.tracing.Trace, then kotlin.jvm.internal
+# .Lambda, then kotlin.LazyKt, ...). Keep the whole runtime support package
+# rather than chasing each one individually.
+-keep class kotlin.** { *; }
